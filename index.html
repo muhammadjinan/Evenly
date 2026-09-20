@@ -214,6 +214,34 @@ button.led-row:active{background:var(--panel-2)}
 .preview{padding:10px 12px;border-radius:12px;background:var(--panel-2);border:1.5px dashed var(--line);font-size:15.5px;line-height:1.35}
 .pv-sub{margin-top:3px;font-size:14px;color:var(--muted)}
 .confirm-text{font-size:17px;padding:4px 0 8px}
+.sheet .seg{margin-top:0}
+.srows{margin-top:10px;border:1.5px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
+.srow{display:flex;align-items:center;gap:10px;padding:8px 12px;min-height:56px}
+.srow+.srow{border-top:1px solid var(--line)}
+.srow-name{flex:1;min-width:0;font-weight:600;font-size:16.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow-in{display:flex;align-items:center;gap:4px;padding:0 10px;height:44px;width:132px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel-2)}
+.srow.s .srow-in{width:84px}
+.srow-in:focus-within{outline:2.5px solid var(--court);outline-offset:1px}
+.srow-in .pre{color:var(--muted);font-weight:600}
+.srow-in input{width:100%;min-width:0;border:0;background:transparent;outline:none;font-family:var(--f-display);font-weight:700;font-size:22px;text-align:right;color:var(--ink);padding:0}
+.srow-in input::placeholder{color:var(--muted);opacity:.75}
+.calc{min-width:68px;text-align:right;font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--muted)}
+.pv-err{color:var(--danger);font-weight:600}
+.bk-p{font-size:15.5px;margin-top:6px}
+.bk-actions{display:grid;gap:10px;margin-top:12px}
+.file-btn{position:relative;overflow:hidden;margin-top:12px;cursor:pointer}
+.file-btn:focus-within{outline:2.5px solid var(--court);outline-offset:2px}
+.file-over{position:absolute;top:0;left:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;font-size:120px}
+.rs-list{margin-top:10px;border:1.5px solid var(--line);border-radius:14px;overflow:hidden}
+.rs-item{display:flex;flex-direction:column;gap:1px;padding:10px 14px;font-size:16px}
+.rs-item+.rs-item{border-top:1px solid var(--line)}
+.rs-item .muted{font-size:14px}
+.rs-warn{color:var(--neg);font-size:14px}
+.ledger.spaced{margin-top:24px}
+.mt0{margin-top:0}
+.mt8{margin-top:8px}
+.mt12{margin-top:12px}
+.mt26{margin-top:26px}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes rise{from{transform:translateY(28px)}to{transform:none}}
 @media (min-width:600px){.overlay{align-items:center}.sheet{border-radius:22px;max-height:88%}}
@@ -251,7 +279,7 @@ function compute(ev){
     if(!(e.payer in r.paid))continue;
     const ids=Array.from(new Set(e.forIds)).filter(id=>id in r.paid);
     if(!ids.length)continue;
-    const sh=splitEqual(e.amount,ids);
+    const sh=expenseShares(e,ids);
     let own=0;
     r.total+=e.amount;
     r.paid[e.payer]+=e.amount;
@@ -354,14 +382,180 @@ function parseAmount(str){
   if(f.length>2&&f.charAt(2)>='5')minor+=1;
   return isFinite(minor)?minor:NaN;
 }
+
+/* ---- unequal splits ---- */
+/* Split an amount (minor units) in proportion to weights. Leftover paise go to the largest remainders. */
+function splitByWeights(amount,ids,weights){
+  const W=weights.map(w=>Math.round(w*100)),tot=W.reduce((a,b)=>a+b,0);
+  const q=[],r=[];
+  let used=0;
+  for(let i=0;i<ids.length;i++){
+    const num=amount*W[i];
+    let qi=Math.floor(num/tot),ri=num-qi*tot;
+    while(ri<0){qi--;ri+=tot;}
+    while(ri>=tot){qi++;ri-=tot;}
+    q.push(qi);r.push(ri);used+=qi;
+  }
+  const left=amount-used;
+  const order=ids.map((_,i)=>i).sort((a,b)=>r[b]-r[a]||a-b);
+  for(let k=0;k<left;k++)q[order[k]]++;
+  const out={};
+  ids.forEach((id,i)=>{out[id]=q[i];});
+  return out;
+}
+
+/* "By amount": people with a typed amount are fixed; everyone else shares what is left equally. */
+function resolveAmounts(amount,ids,fixed){
+  const out={},auto=[];
+  let sumFixed=0,nFixed=0;
+  for(const id of ids){
+    const v=fixed[id];
+    if(v==null)auto.push(id);
+    else{out[id]=v;sumFixed+=v;nFixed++;}
+  }
+  const rest=amount-sumFixed;
+  if(auto.length){
+    if(rest<0)return {ok:false,over:-rest,nFixed};
+    const sh=splitEqual(rest,auto);
+    for(const id of auto)out[id]=sh[id];
+    return {ok:true,shares:out,rest,auto,nFixed};
+  }
+  if(rest<0)return {ok:false,over:-rest,nFixed};
+  if(rest>0)return {ok:false,left:rest,nFixed};
+  return {ok:true,shares:out,rest:0,auto:[],nFixed};
+}
+
+/* The per-person shares of one expense: the stored uneven shares when they are valid, otherwise equal. */
+function expenseShares(e,ids){
+  if(e.sh&&typeof e.sh==='object'){
+    let s=0,ok=Object.keys(e.sh).length===ids.length;
+    for(const id of ids){const v=e.sh[id];if(!Number.isInteger(v)||v<0){ok=false;break;}s+=v;}
+    if(ok&&s===e.amount)return e.sh;
+  }
+  return splitEqual(e.amount,ids);
+}
+
+const parseWeight=raw=>{const m=parseAmount(raw);return Number.isNaN(m)?NaN:m/100;};
+
+/* Turns the add/edit form into per-person shares, or says what is wrong. */
+function resolveDraft(ev,d){
+  const amt=parseAmount(d.amountStr);
+  const ids=ev.members.filter(m=>d.forIds.indexOf(m.id)>=0).map(m=>m.id);
+  const nameOf=id=>{const m=ev.members.find(x=>x.id===id);return m?m.name:'?';};
+  const base={amt,ids,mode:d.mode||'equal'};
+  if(!(amt>0)||!ids.length)return Object.assign(base,{ok:false,idle:true});
+  if(base.mode==='shares'){
+    const w=[];
+    for(const id of ids){
+      const raw=String((d.valsS||{})[id]||'').trim();
+      const v=raw===''?1:parseWeight(raw);
+      if(!(v>0&&v<=100))return Object.assign(base,{ok:false,err:'Shares for '+nameOf(id)+' must be between 0.01 and 100.'});
+      w.push(v);
+    }
+    return Object.assign(base,{ok:true,weights:w,shares:splitByWeights(amt,ids,w)});
+  }
+  if(base.mode==='amount'){
+    const fixed={};
+    for(const id of ids){
+      const raw=String((d.valsA||{})[id]||'').trim();
+      if(raw===''){fixed[id]=null;continue;}
+      const v=parseAmount(raw);
+      if(!(v>=0))return Object.assign(base,{ok:false,err:'Check the amount for '+nameOf(id)+'.'});
+      fixed[id]=v;
+    }
+    return Object.assign(base,{fixed},resolveAmounts(amt,ids,fixed));
+  }
+  return Object.assign(base,{ok:true,shares:splitEqual(amt,ids)});
+}
+
+/* ---- data helpers ---- */
+const HUES=8;
+let _c=0;
+const uid=()=>Date.now().toString(36)+(_c++).toString(36)+Math.random().toString(36).slice(2,5);
+
+const CURRENCIES=['₹','$','€','£','AED','SAR','QAR','OMR','KWD','BHD','MYR','S$',''];
+const isId=x=>typeof x==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(x);
+const DONE_KEY=/^[hd]_[A-Za-z0-9][A-Za-z0-9_-]*_[A-Za-z0-9][A-Za-z0-9_-]*_\d{1,12}$/;
+
+/* Cleans one event coming from storage or from a file. Anything unexpected is dropped or replaced,
+   because files can come from other people. */
+function normEvent(e){
+  if(!e||typeof e!=='object')return null;
+  const seen=new Set();
+  const members=(Array.isArray(e.members)?e.members:[]).slice(0,100)
+    .filter(m=>m&&isId(m.id)&&typeof m.name==='string'&&m.name.trim()!==''&&!seen.has(m.id)&&seen.add(m.id))
+    .map((m,i)=>({id:m.id,name:m.name.slice(0,24),h:Number.isInteger(m.h)?((m.h%HUES)+HUES)%HUES:i%HUES}));
+  if(!members.length)return null;
+  const ids=new Set(members.map(m=>m.id));
+  const expenses=(Array.isArray(e.expenses)?e.expenses:[]).slice(0,5000)
+    .filter(x=>x&&ids.has(x.payer)&&Number.isFinite(x.amount)&&x.amount>0&&x.amount<=1e11&&Array.isArray(x.forIds))
+    .map(x=>{
+      const rec={id:isId(x.id)?x.id:uid(),title:String(x.title||'Expense').slice(0,40),amount:Math.round(x.amount),payer:x.payer,forIds:Array.from(new Set(x.forIds.slice(0,200).filter(i=>ids.has(i)))),at:Number(x.at)||Date.now()};
+      if((x.mode==='shares'||x.mode==='amount')&&x.sh&&typeof x.sh==='object'&&rec.forIds.length){
+        let s=0,ok=Object.keys(x.sh).length===rec.forIds.length;
+        for(const id of rec.forIds){const v=x.sh[id];if(!Number.isInteger(v)||v<0){ok=false;break;}s+=v;}
+        if(ok&&s===rec.amount){
+          rec.mode=x.mode;rec.sh={};rec.vals={};
+          rec.forIds.forEach(id=>{rec.sh[id]=x.sh[id];const t=x.vals&&x.vals[id];if(typeof t==='string'&&t.length<=12)rec.vals[id]=t;});
+        }
+      }
+      return rec;
+    })
+    .filter(x=>x.forIds.length);
+  const done={};
+  if(e.done&&typeof e.done==='object'){
+    let n=0;
+    for(const k of Object.keys(e.done)){if(n>=3000)break;if(DONE_KEY.test(k)&&e.done[k]){done[k]=1;n++;}}
+  }
+  return {id:isId(e.id)?e.id:uid(),name:String(e.name||'Event').slice(0,40),currency:CURRENCIES.indexOf(e.currency)>=0?e.currency:'₹',createdAt:Number(e.createdAt)||Date.now(),coordId:ids.has(e.coordId)?e.coordId:members[0].id,members,expenses,mode:e.mode==='direct'?'direct':'hub',done};
+}
+
+/* kind: 'backup' for everything on the device, 'event' for one event shared with a group. */
+function makeBackup(state,kind){
+  const o={app:'evenly',version:1,kind:kind||'backup',savedAt:new Date().toISOString(),events:state.events};
+  if(state.lastCoord!=null)o.lastCoord=state.lastCoord;
+  if(state.lastCur!=null)o.lastCur=state.lastCur;
+  return JSON.stringify(o);
+}
+function parseBackup(text){
+  const raw=String(text==null?'':text).trim();
+  if(!raw)return {err:'Choose a file or paste the text first.'};
+  const a=raw.indexOf('{'),b=raw.lastIndexOf('}');
+  if(a<0||b<a)return {err:'That does not look like an Evenly file.'};
+  let d;
+  try{d=JSON.parse(raw.slice(a,b+1));}catch(e){return {err:'The text is incomplete or damaged. Copy it again in full and retry.'};}
+  if(!d||d.app!=='evenly'||!Array.isArray(d.events))return {err:'That does not look like an Evenly file.'};
+  const seen=new Set(),events=[];
+  for(const x of d.events.slice(0,200)){const n=normEvent(x);if(n&&!seen.has(n.id)){seen.add(n.id);events.push(n);}}
+  if(!events.length)return {err:'This file has no events in it.'};
+  return {events,kind:d.kind==='event'?'event':'backup',savedAt:typeof d.savedAt==='string'?d.savedAt:null,lastCoord:typeof d.lastCoord==='string'?d.lastCoord.slice(0,24):null,lastCur:CURRENCIES.indexOf(d.lastCur)>=0?d.lastCur:null};
+}
+
+/* What makes two copies of an event "the same": people and expenses, not ticks or view mode. */
+const contentKey=e=>JSON.stringify([e.name,e.currency,e.coordId,e.members.map(m=>[m.id,m.name]),e.expenses.map(x=>[x.id,x.title,x.amount,x.payer,x.forIds,x.sh||null])]);
+
+/* Adds events from a file. Events you do not have are added. For ones you already have, how='update'
+   replaces your copy (keeping your ticked payments) and anything else adds the file's version as a copy. */
+function mergeImport(local,incoming,how,newId,now){
+  const events=local.slice(),res={events,added:0,updated:0,copied:0,last:null};
+  for(const e of incoming){
+    const i=events.findIndex(x=>x.id===e.id);
+    if(i<0){const n=Object.assign({},e,{createdAt:now});events.push(n);res.added++;res.last=n;}
+    else if(how==='update'){
+      const l=events[i],n=Object.assign({},e,{createdAt:l.createdAt,done:Object.assign({},e.done,l.done)});
+      events[i]=n;res.updated++;res.last=n;
+    }else{
+      const n=Object.assign({},e,{id:newId(),name:e.name.slice(0,33)+' (copy)',createdAt:now});
+      events.push(n);res.copied++;res.last=n;
+    }
+  }
+  return res;
+}
 /*</logic>*/
 
 /* ---------- helpers ---------- */
 const $=(s,r)=>(r||document).querySelector(s);
-let _c=0;
-const uid=()=>Date.now().toString(36)+(_c++).toString(36)+Math.random().toString(36).slice(2,5);
 const esc=s=>String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const HUES=8;
 const CURS=[['₹','₹ Indian rupee'],['$','$ Dollar'],['€','€ Euro'],['£','£ Pound'],['AED','AED UAE dirham'],['SAR','SAR Saudi riyal'],['QAR','QAR Qatari riyal'],['OMR','OMR Omani rial'],['KWD','KWD Kuwaiti dinar'],['BHD','BHD Bahraini dinar'],['MYR','MYR Malaysian ringgit'],['S$','S$ Singapore dollar'],['','No symbol']];
 
 const IC={
@@ -378,6 +572,9 @@ const IC={
   share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
   copy:'<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   crown:'<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
   alert:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
 };
 const icon=(n,s)=>`<svg class="ic" width="${s||20}" height="${s||20}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]||''}</svg>`;
@@ -386,21 +583,10 @@ const MARK='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="
 
 /* ---------- state and storage ---------- */
 const KEY='evenly.v1';
-let S={v:1,events:[],currentId:null,tab:'expenses',lastCoord:'Jinan',lastCur:'₹'};
+let S={v:1,events:[],currentId:null,tab:'expenses',lastCoord:'Jinan',lastCur:'₹',lastBackup:0};
 let storageOk=true;
-const ui={sheet:null,confirmFn:null,toastAction:null};
+const ui={sheet:null,confirmFn:null,toastAction:null,pendingRestore:null};
 
-function normEvent(e){
-  if(!e||typeof e!=='object')return null;
-  const members=(Array.isArray(e.members)?e.members:[]).filter(m=>m&&m.id&&m.name).map((m,i)=>({id:String(m.id),name:String(m.name).slice(0,24),h:Number.isInteger(m.h)?((m.h%HUES)+HUES)%HUES:i%HUES}));
-  if(!members.length)return null;
-  const ids=new Set(members.map(m=>m.id));
-  const expenses=(Array.isArray(e.expenses)?e.expenses:[])
-    .filter(x=>x&&ids.has(x.payer)&&Number.isFinite(x.amount)&&x.amount>0&&Array.isArray(x.forIds))
-    .map(x=>({id:String(x.id||uid()),title:String(x.title||'Expense').slice(0,40),amount:Math.round(x.amount),payer:x.payer,forIds:Array.from(new Set(x.forIds.filter(i=>ids.has(i)))),at:Number(x.at)||Date.now()}))
-    .filter(x=>x.forIds.length);
-  return {id:String(e.id||uid()),name:String(e.name||'Event').slice(0,40),currency:typeof e.currency==='string'?e.currency:'₹',createdAt:Number(e.createdAt)||Date.now(),coordId:ids.has(e.coordId)?e.coordId:members[0].id,members,expenses,mode:e.mode==='direct'?'direct':'hub',done:(e.done&&typeof e.done==='object')?e.done:{}};
-}
 function load(){
   try{
     const raw=localStorage.getItem(KEY);
@@ -443,6 +629,8 @@ function forLabel(ev,e){
   if(e.forIds.length===ev.members.length)return 'everyone ('+e.forIds.length+')';
   return e.forIds.map(id=>nm(ev,id)).join(', ');
 }
+const isUneven=e=>e.mode==='shares'||e.mode==='amount';
+function shareLabel(ev,e){return e.forIds.map(id=>nm(ev,id)+' '+M(ev,e.sh[id])).join(', ');}
 function getPlan(ev,calc){
   const hubOn=ev.mode!=='direct';
   if(hubOn){
@@ -466,6 +654,8 @@ function homeView(){
       ${icon('chev',18)}</button>`;
   });
   const banner=storageOk?'':`<div class="note warn">${icon('alert',18)}<span>This browser is not letting the page save data, so events will be lost when you close it.</span></div>`;
+  const backupRow=`<ul class="ledger spaced"><li><button class="led-row" data-act="importEvent"><span class="ev-ic">${icon('upload',20)}</span><span class="led-main"><span class="led-title">Add event from file</span><span class="led-sub">Got an event from someone in your group? Add it here</span></span>${icon('chev',18)}</button></li><li><button class="led-row" data-act="backup"><span class="ev-ic">${icon('database',20)}</span><span class="led-main"><span class="led-title">Backup and restore</span><span class="led-sub">Keep a copy of your events, or bring them back</span></span>${icon('chev',18)}</button></li></ul>`;
+  const last=S.lastBackup?'Last backup: '+dateText(S.lastBackup)+'.':'No backup yet.';
   return `<div class="wrap screen">${banner}
     <section class="hero">${COURT}<div class="hero-in">
       <div class="brand"><span class="mark">${MARK}</span><span>Evenly</span></div>
@@ -474,7 +664,8 @@ function homeView(){
       <div class="hero-actions"><button class="btn cork" data-act="newEvent">${icon('plus',20)}New event</button>${evs.length?'':'<button class="btn outline-light" data-act="sample">Try a sample</button>'}</div>
     </div></section>
     ${evs.length?`<div class="sec-row"><h2 class="sec">Your events</h2></div>${ledger(rows)}`:''}
-    <p class="foot-note">Events are saved on this device only.</p>
+    ${backupRow}
+    <p class="foot-note">Events are saved on this device only. ${last}</p>
   </div>`;
 }
 
@@ -510,11 +701,14 @@ function peopleView(ev,calc){
 }
 
 function expenseRow(ev,e){
-  const n=e.forIds.length,each=eachLabel(ev,e.amount,e.forIds);
+  const n=e.forIds.length;
+  const line=isUneven(e)
+    ?`Split ${e.mode==='shares'?'by shares':'by amount'}: ${esc(shareLabel(ev,e))}`
+    :`Split ${n} way${n===1?'':'s'}, ${eachLabel(ev,e.amount,e.forIds)}${n>1?' each':''}: ${esc(forLabel(ev,e))}`;
   return `<button class="led-row exp" data-act="editExpense" data-id="${e.id}"><span class="exp-body">
     <span class="exp-top"><span class="led-title">${esc(e.title)}</span><span class="num">${M(ev,e.amount)}</span></span>
     <span class="exp-who">${avatar(mem(ev,e.payer),'xs')}<span>${esc(nm(ev,e.payer))} paid</span></span>
-    <span class="led-sub">Split ${n} way${n===1?'':'s'}, ${each}${n>1?' each':''}: ${esc(forLabel(ev,e))}</span>
+    <span class="led-sub">${line}</span>
   </span></button>`;
 }
 
@@ -578,7 +772,8 @@ function settleView(ev,calc){
     <div class="checks">${ck(chk.balanced,'Every person ends up exactly even.','The payments do not add up. Check the expenses.')}${ck(chk.capped,'Nobody gets back more than they spent on others.','Someone would get back more than they spent on others. Check the expenses.')}</div>
     <div class="sec-row"><h2 class="sec">Balances</h2><span class="prog">${M(ev,calc.total)} spent</span></div>
     ${ledger(bal)}
-    <button class="btn outline block gap" style="margin-top:20px" data-act="share">${icon('share',18)}Share summary</button>`;
+    <button class="btn outline block gap mt26" data-act="share">${icon('share',18)}Share summary</button>
+    <button class="btn outline block gap" data-act="shareEvent">${icon('download',18)}Share event file</button>`;
 }
 
 /* ---------- summary text ---------- */
@@ -597,7 +792,7 @@ function summaryText(ev){
     L.push('');
   }
   L.push('Expenses:');
-  ev.expenses.forEach(e=>L.push('- '+e.title+', '+M(ev,e.amount)+', paid by '+nm(ev,e.payer)+', for '+forLabel(ev,e)));
+  ev.expenses.forEach(e=>L.push('- '+e.title+', '+M(ev,e.amount)+', paid by '+nm(ev,e.payer)+', '+(isUneven(e)?'split by '+(e.mode==='shares'?'shares':'amount')+': '+shareLabel(ev,e):'for '+forLabel(ev,e))));
   return L.join('\n');
 }
 
@@ -623,29 +818,74 @@ function newEventSheet(){
 }
 
 function expenseDraft(ev,e){
-  if(e)return {id:e.id,title:e.title,amountStr:String(e.amount/100),payer:e.payer,forIds:e.forIds.slice()};
-  return {id:null,title:'',amountStr:'',payer:null,forIds:ev.members.map(m=>m.id)};
+  if(e){
+    return {id:e.id,title:e.title,amountStr:String(e.amount/100),payer:e.payer,forIds:e.forIds.slice(),mode:isUneven(e)?e.mode:'equal',valsS:e.mode==='shares'?Object.assign({},e.vals):{},valsA:e.mode==='amount'?Object.assign({},e.vals):{}};
+  }
+  return {id:null,title:'',amountStr:'',payer:null,forIds:ev.members.map(m=>m.id),mode:'equal',valsS:{},valsA:{}};
 }
 
+const rangeLabel=(ev,vals)=>{const lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);return lo===hi?M(ev,lo):M(ev,lo)+' to '+M(ev,hi);};
+
 function previewHtml(ev,d){
-  const amt=parseAmount(d.amountStr),n=d.forIds.length;
-  if(!(amt>0)||!n)return '<span class="muted">Enter the amount and pick who it was for to see the split.</span>';
-  const sh=splitEqual(amt,d.forIds),each=eachLabel(ev,amt,d.forIds);
-  let out=`<div><b>${M(ev,amt)}</b> split ${n} way${n===1?'':'s'}: <b>${each}</b>${n>1?' each':''}</div>`;
+  const R=resolveDraft(ev,d),n=R.ids.length;
+  if(R.idle)return '<span class="muted">Enter the amount and pick who it was for to see the split.</span>';
+  let out='';
+  if(R.mode==='shares'){
+    if(!R.ok)return `<div class="pv-err">${esc(R.err)}</div>`;
+    const tw=R.weights.reduce((a,b)=>a+b,0);
+    out=`<div><b>${M(ev,R.amt)}</b> in ${+tw.toFixed(2)} share${tw===1?'':'s'}: about <b>${M(ev,Math.round(R.amt/tw))}</b> a share</div>`;
+  }else if(R.mode==='amount'){
+    if(R.err)return `<div class="pv-err">${esc(R.err)}</div>`;
+    if(!R.ok)return R.over?`<div class="pv-err">The amounts add up to ${M(ev,R.over)} more than the total.</div>`:`<div class="pv-err">${M(ev,R.left)} of the total is still unassigned.</div>`;
+    if(!R.nFixed){
+      out=`<div><b>${M(ev,R.amt)}</b> split ${n} way${n===1?'':'s'}: <b>${rangeLabel(ev,Object.values(R.shares))}</b>${n>1?' each':''}</div>`;
+    }else if(R.auto.length){
+      const a=R.auto.length;
+      out=`<div><b>${M(ev,R.amt-R.rest)}</b> is fixed. ${a===1?'The other person pays':'The other '+a+' share'} <b>${M(ev,R.rest)}</b>${a>1?': '+rangeLabel(ev,R.auto.map(id=>R.shares[id]))+' each':''}.</div>`;
+    }else out=`<div>All <b>${M(ev,R.amt)}</b> is assigned.</div>`;
+  }else{
+    out=`<div><b>${M(ev,R.amt)}</b> split ${n} way${n===1?'':'s'}: <b>${rangeLabel(ev,Object.values(R.shares))}</b>${n>1?' each':''}</div>`;
+  }
   if(d.payer){
     const p=esc(nm(ev,d.payer));
-    if(d.forIds.indexOf(d.payer)>=0){
-      const own=sh[d.payer],back=amt-own;
+    if(R.ids.indexOf(d.payer)>=0){
+      const own=R.shares[d.payer],back=R.amt-own;
       out+=back>0?`<div class="pv-sub">${p}'s own share (${M(ev,own)}) is not paid back, so ${p} gets back ${M(ev,back)}.</div>`:`<div class="pv-sub">Only for ${p}, so there is nothing to get back.</div>`;
-    }else out+=`<div class="pv-sub">${p} is not in the split, so ${p} gets back the full ${M(ev,amt)}.</div>`;
+    }else out+=`<div class="pv-sub">${p} is not in the split, so ${p} gets back the full ${M(ev,R.amt)}.</div>`;
   }else out+='<div class="pv-sub">Pick who paid.</div>';
   return out;
+}
+
+function splitRowsHtml(ev,d){
+  if(d.mode==='equal')return '';
+  const members=ev.members.filter(m=>d.forIds.indexOf(m.id)>=0);
+  if(!members.length)return '<p class="hint">Tick at least one person above.</p>';
+  const R=resolveDraft(ev,d),isS=d.mode==='shares',vals=(isS?d.valsS:d.valsA)||{};
+  const rows=members.map(m=>{
+    const ph=isS?'1':(R.shares&&R.shares[m.id]!=null?fmt(R.shares[m.id],''):'auto');
+    const calc=isS?`<span class="calc">${R.ok&&R.shares?M(ev,R.shares[m.id]):'\u2013'}</span>`:'';
+    return `<div class="srow ${isS?'s':''}" data-row="${m.id}">${avatar(m,'sm')}<label class="srow-name" for="sv_${m.id}">${esc(m.name)}</label><span class="srow-in">${isS?'':`<span class="pre">${esc(ev.currency)}</span>`}<input id="sv_${m.id}" data-field="sv" data-id="${m.id}" inputmode="decimal" autocomplete="off" placeholder="${esc(ph)}" value="${esc(vals[m.id]||'')}" aria-label="${isS?'Shares':'Amount'} for ${esc(m.name)}"></span>${calc}</div>`;
+  }).join('');
+  const hint=isS?'Give each person a share, such as 2 for a double portion. Leave it blank for 1.':'Type what a person owes. Anyone left blank shares whatever is left equally.';
+  return `<div class="srows">${rows}</div><p class="hint">${hint}</p>`;
+}
+
+function updateSplitRows(){
+  const ev=curEv(),d=ui.sheet&&ui.sheet.draft;
+  if(!ev||!d||d.mode==='equal')return;
+  const R=resolveDraft(ev,d);
+  document.querySelectorAll('.srow').forEach(row=>{
+    const id=row.dataset.row,inp=row.querySelector('input'),calc=row.querySelector('.calc');
+    if(d.mode==='shares'){if(calc)calc.textContent=(R.ok&&R.shares&&R.shares[id]!=null)?M(ev,R.shares[id]):'\u2013';}
+    else if(inp&&inp.value.trim()===''){inp.placeholder=(R.shares&&R.shares[id]!=null)?fmt(R.shares[id],''):'auto';}
+  });
 }
 
 function expenseSheet(ev,d){
   const edit=!!d.id;
   const chip=(m,act,on)=>`<button type="button" class="chip ${on?'on':''}" data-act="${act}" data-id="${m.id}" aria-pressed="${on}">${avatar(m,'sm')}<span>${esc(m.name)}</span></button>`;
   const quick=['Court','Transport','Food','Snacks','Drinks','Stay','Fuel','Tickets'].map(t=>`<button type="button" class="chip text sm" data-act="quickTitle" data-t="${t}">${t}</button>`).join('');
+  const modes=[['equal','Equally'],['shares','By shares'],['amount','By amount']].map(x=>`<button type="button" class="${d.mode===x[0]?'on':''}" data-act="splitMode" data-mode="${x[0]}" aria-pressed="${d.mode===x[0]}">${x[1]}</button>`).join('');
   const body=`<label class="lbl" for="fAmount">Amount</label>
     <div class="money"><span class="cur">${esc(ev.currency)}</span><input id="fAmount" data-field="amount" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(d.amountStr)}"></div>
     <label class="lbl" for="fTitle">What was it for?</label>
@@ -656,7 +896,10 @@ function expenseSheet(ev,d){
     <div class="lbl-row"><span class="lbl">Split between <span id="forCount" class="muted">(${d.forIds.length} of ${ev.members.length})</span></span><span><button type="button" class="link" data-act="forAll">All</button><button type="button" class="link" data-act="forNone">None</button></span></div>
     <div class="chips">${ev.members.map(m=>chip(m,'toggleFor',d.forIds.indexOf(m.id)>=0)).join('')}</div>
     <p class="hint">Tick everyone who shared this cost. Include the payer only if they used it too.</p>
-    ${edit?`<div class="foot-row" style="margin-top:18px"><button class="btn outline sm" data-act="dupExpense">${icon('copy',16)}Duplicate</button><button class="btn danger sm" data-act="delExpense">${icon('trash',16)}Delete</button></div>`:''}`;
+    <div class="lbl">How to split</div>
+    <div class="seg" role="group" aria-label="How to split">${modes}</div>
+    <div id="splitRows">${splitRowsHtml(ev,d)}</div>
+    ${edit?`<div class="foot-row mt26"><button class="btn outline sm" data-act="dupExpense">${icon('copy',16)}Duplicate</button><button class="btn danger sm" data-act="delExpense">${icon('trash',16)}Delete</button></div>`:''}`;
   const foot=`<div id="expPreview" class="preview" aria-live="polite">${previewHtml(ev,d)}</div>
     <p class="err" id="expErr" role="alert"></p>
     <button class="btn block" data-act="saveExpense">${edit?'Save changes':'Add expense'}</button>`;
@@ -684,7 +927,9 @@ function settingsSheet(ev){
     <input id="sName" class="input" maxlength="40" value="${esc(ev.name)}" autocomplete="off" data-enter="#saveSettings">
     <label class="lbl" for="sCur">Currency</label>
     <select id="sCur" class="select">${curOptions(ev.currency)}</select>
-    <button class="btn danger block gap" style="margin-top:24px" data-act="askDeleteEvent">${icon('trash',18)}Delete event</button>`;
+    <button class="btn outline block gap mt26" data-act="shareEvent">${icon('download',18)}Share event file</button>
+    <button class="btn outline block gap" data-act="backup">${icon('database',18)}Backup and restore</button>
+    <button class="btn danger block gap" data-act="askDeleteEvent">${icon('trash',18)}Delete event</button>`;
   return shell('Event settings',body,`<button class="btn block" id="saveSettings" data-act="saveSettings">Save changes</button>`);
 }
 
@@ -710,6 +955,10 @@ function renderSheet(){
   else if(sh.type==='settings'&&ev)html=settingsSheet(ev);
   else if(sh.type==='confirm')html=confirmSheet(sh);
   else if(sh.type==='share'&&ev)html=shareSheet(ev);
+  else if(sh.type==='backup')html=backupSheet();
+  else if(sh.type==='restore')html=restoreSheet();
+  else if(sh.type==='shareEvent'&&ev)html=shareEventSheet();
+  else if(sh.type==='import')html=importSheet();
   root.innerHTML=html;
 }
 function lock(on){document.documentElement.style.overflow=on?'hidden':'';}
@@ -717,7 +966,7 @@ function openSheet(sh,focusSel){
   ui.sheet=sh;renderSheet();lock(true);
   if(focusSel)setTimeout(()=>{const el=$(focusSel);if(el){el.focus();try{if(el.tagName==='INPUT'&&el.value)el.select();}catch(e){}}},40);
 }
-function closeSheet(){ui.sheet=null;ui.confirmFn=null;$('#sheetRoot').innerHTML='';lock(false);}
+function closeSheet(){ui.sheet=null;ui.confirmFn=null;ui.pendingRestore=null;$('#sheetRoot').innerHTML='';lock(false);}
 
 let toastT=null;
 function toast(msg,action){
@@ -732,12 +981,14 @@ const app=$('#app');
 function render(){const ev=curEv();app.innerHTML=ev?eventView(ev):homeView();}
 
 /* ---------- expense sheet helpers ---------- */
-function syncExpense(){
+function syncExpense(rebuild){
   const ev=curEv(),d=ui.sheet&&ui.sheet.draft;
   if(!ev||!d)return;
   document.querySelectorAll('[data-act="pickPayer"]').forEach(b=>{const on=b.dataset.id===d.payer;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));});
   document.querySelectorAll('[data-act="toggleFor"]').forEach(b=>{const on=d.forIds.indexOf(b.dataset.id)>=0;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));});
+  document.querySelectorAll('[data-act="splitMode"]').forEach(b=>{const on=b.dataset.mode===d.mode;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));});
   const c=$('#forCount');if(c)c.textContent='('+d.forIds.length+' of '+ev.members.length+')';
+  if(rebuild){const r=$('#splitRows');if(r)r.innerHTML=splitRowsHtml(ev,d);}else updateSplitRows();
   const p=$('#expPreview');if(p)p.innerHTML=previewHtml(ev,d);
   setErr('#expErr','');
 }
@@ -831,26 +1082,38 @@ const ACT={
     const ev=curEv(),e=ev&&ev.expenses.find(x=>x.id===t.dataset.id);if(!e)return;
     openSheet({type:'expense',draft:expenseDraft(ev,e)});
   },
-  pickPayer(t){ui.sheet.draft.payer=t.dataset.id;syncExpense();},
+  pickPayer(t){ui.sheet.draft.payer=t.dataset.id;syncExpense(false);},
   toggleFor(t){
     const d=ui.sheet.draft,id=t.dataset.id,i=d.forIds.indexOf(id);
     if(i>=0)d.forIds.splice(i,1);else d.forIds.push(id);
-    syncExpense();
+    syncExpense(true);
   },
-  forAll(){const ev=curEv();ui.sheet.draft.forIds=ev.members.map(m=>m.id);syncExpense();},
-  forNone(){ui.sheet.draft.forIds=[];syncExpense();},
+  forAll(){const ev=curEv();ui.sheet.draft.forIds=ev.members.map(m=>m.id);syncExpense(true);},
+  forNone(){ui.sheet.draft.forIds=[];syncExpense(true);},
+  splitMode(t){
+    ui.sheet.draft.mode=t.dataset.mode;syncExpense(true);
+    if(ui.sheet.draft.mode!=='equal'){const sg=document.querySelector('.sheet .seg');if(sg&&sg.scrollIntoView)sg.scrollIntoView({block:'start'});}
+  },
   quickTitle(t){const d=ui.sheet.draft;d.title=t.dataset.t;const i=$('#fTitle');if(i)i.value=d.title;},
   saveExpense(){
     const ev=curEv(),d=ui.sheet&&ui.sheet.draft;if(!ev||!d)return;
-    const amt=parseAmount(d.amountStr);
+    const R=resolveDraft(ev,d),amt=R.amt;
     let err='';
     if(!(amt>0))err='Enter the amount.';
     else if(amt>1e11)err='That amount is too large.';
     else if(!d.payer)err='Choose who paid.';
     else if(!d.forIds.length)err='Choose at least one person to split between.';
+    else if(!R.ok)err=R.err||(R.over?'The amounts add up to '+M(ev,R.over)+' more than the total.':M(ev,R.left)+' of the total is still unassigned. Fill it in, or clear an amount so the rest is shared.');
     if(err){setErr('#expErr',err);return;}
-    const ids=ev.members.filter(m=>d.forIds.indexOf(m.id)>=0).map(m=>m.id);
-    const rec={id:d.id||uid(),title:(d.title||'').trim().slice(0,40)||'Expense',amount:amt,payer:d.payer,forIds:ids,at:Date.now()};
+    const rec={id:d.id||uid(),title:(d.title||'').trim().slice(0,40)||'Expense',amount:amt,payer:d.payer,forIds:R.ids,at:Date.now()};
+    if(d.mode==='shares'||d.mode==='amount'){
+      const src=(d.mode==='shares'?d.valsS:d.valsA)||{},vals={};
+      R.ids.forEach(id=>{const v=String(src[id]||'').trim();if(v!=='')vals[id]=v;});
+      if(Object.keys(vals).length){
+        rec.mode=d.mode;rec.vals=vals;rec.sh={};
+        R.ids.forEach(id=>{rec.sh[id]=R.shares[id];});
+      }
+    }
     const wasEdit=!!d.id;
     if(wasEdit){
       const i=ev.expenses.findIndex(x=>x.id===d.id);
@@ -859,8 +1122,8 @@ const ACT={
     save();closeSheet();render();toast(wasEdit?'Changes saved':'Expense added');
   },
   dupExpense(){
-    const ev=curEv(),d=ui.sheet.draft;
-    openSheet({type:'expense',draft:{id:null,title:d.title,amountStr:d.amountStr,payer:d.payer,forIds:d.forIds.slice()}},'#fAmount');
+    const d=ui.sheet.draft;
+    openSheet({type:'expense',draft:{id:null,title:d.title,amountStr:d.amountStr,payer:d.payer,forIds:d.forIds.slice(),mode:d.mode,valsS:Object.assign({},d.valsS),valsA:Object.assign({},d.valsA)}},'#fAmount');
   },
   delExpense(){
     const ev=curEv(),d=ui.sheet.draft;
@@ -892,6 +1155,34 @@ const ACT={
     openSheet({type:'confirm',title:'Delete event?',text:'This deletes '+ev.name+' and all of its expenses. This cannot be undone.',label:'Delete event'});
     ui.confirmFn=fn;
   },
+  importEvent(){openSheet({type:'import'});},
+  importAdd(){applyImport('keep');},
+  importUpdate(){applyImport('update');},
+  importKeep(){applyImport('keep');},
+  shareEvent(){openSheet({type:'shareEvent'});},
+  saveEventFile(){saveEventFile();},
+  copyEventText(){copyEventText();},
+  shareEventText(){shareEventText();},
+  pasteClipboard(){pasteClipboard();},
+  backup(){openSheet({type:'backup'});},
+  copyBackup(){copyBackup();},
+  saveBackup(){saveBackupFile();},
+  restoreText(){const ta=$('#rsText');startRestore(ta?ta.value:'');},
+  restoreAdd(){
+    const r=ui.pendingRestore;if(!r)return;
+    const have=new Set(S.events.map(e=>e.id));let n=0;
+    r.events.forEach(e=>{if(!have.has(e.id)){S.events.push(e);n++;}});
+    save();closeSheet();render();
+    toast(n?('Added '+plural(n,'event')):'Nothing new: those events are already here');
+  },
+  restoreReplace(){
+    const r=ui.pendingRestore;if(!r)return;
+    S.events=r.events.slice();S.currentId=null;
+    if(r.lastCoord)S.lastCoord=r.lastCoord;
+    if(r.lastCur!=null)S.lastCur=r.lastCur;
+    save();closeSheet();render();window.scrollTo(0,0);
+    toast('Restored '+plural(r.events.length,'event'));
+  },
   confirmYes(){const fn=ui.confirmFn;closeSheet();if(fn)fn();},
   closeSheet(){closeSheet();},
   toastAction(){const fn=ui.toastAction;$('#toastRoot').innerHTML='';ui.toastAction=null;if(fn)fn();}
@@ -910,6 +1201,190 @@ async function doShare(){
   catch(e){if(!e||e.name!=='AbortError')doCopy();}
 }
 
+/* ---------- backup and restore ---------- */
+let DL=null;
+(function(){
+  try{
+    if(window.claude&&typeof window.claude.use==='function'){
+      window.claude.use('downloads').then(ns=>{DL=ns||null;if(DL&&ui.sheet&&(ui.sheet.type==='backup'||ui.sheet.type==='shareEvent'))renderSheet();}).catch(()=>{DL=null;});
+    }
+  }catch(e){DL=null;}
+})();
+const standalone=(()=>{try{return window.self===window.top;}catch(e){return false;}})();
+const canSaveFile=()=>!!DL||standalone;
+async function saveFile(name,data){
+  if(DL){await DL.save({filename:name,data:data});return;}
+  if(standalone){
+    const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+    const a=document.createElement('a');
+    a.href=url;a.download=name;a.style.display='none';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    return;
+  }
+  const err=new Error('unavailable');err.code='unavailable';throw err;
+}
+const dateText=x=>{const d=new Date(x);return isNaN(d.getTime())?'':d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});};
+function dateStamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+
+function backupSheet(){
+  const n=S.events.length;
+  const back=n
+    ?`<p class="bk-p">${n===1?'Saves your event':'Saves all '+n+' events'}: people, expenses and ticked payments.</p>
+      <div class="bk-actions">${canSaveFile()?`<button class="btn block" data-act="saveBackup">${icon('download',18)}Save backup file</button>`:''}<button class="btn ${canSaveFile()?'outline ':''}block" data-act="copyBackup">${icon('copy',18)}Copy backup text</button></div>
+      <textarea id="bkText" class="textarea mono mt12" rows="6" readonly hidden></textarea>
+      <p class="hint">Keep it somewhere safe, like a note or a message to yourself.</p>`
+    :`<p class="bk-p muted">You have no events to back up yet.</p>`;
+  const body=`<h3 class="sub mt8">Back up</h3>${back}
+    <h3 class="sub mt26">Restore</h3>
+    <p class="bk-p">Bring events back from a backup, on this device or a new one.</p>
+    ${restoreControls('Choose backup file','Or paste the backup text','Restore from text')}`;
+  return shell('Backup and restore',body,'');
+}
+function restoreSheet(){
+  const r=ui.pendingRestore;if(!r)return '';
+  const when=r.savedAt?dateText(r.savedAt):'';
+  const info=e=>plural(e.members.length,'person').replace('persons','people')+', '+plural(e.expenses.length,'expense')+', '+fmt(compute(e).total,e.currency)+' spent';
+  if(r.mode==='add'){
+    const st=r.events.map(e=>{const l=S.events.find(x=>x.id===e.id)||null;return {e:e,l:l,same:!!l&&contentKey(l)===contentKey(e)};});
+    const nConf=st.filter(x=>x.l).length,n=r.events.length;
+    const items=st.map(x=>`<li class="rs-item"><b>${esc(x.e.name)}</b><span class="muted">${esc(info(x.e))}</span>${x.l?`<span class="rs-warn">${x.same?'You already have this event with the same people and expenses.':'You already have a copy: '+esc(info(x.l))+'.'}</span>`:''}</li>`).join('');
+    const title=nConf?(n===1?'You already have this event':'Some of these are already here'):(n===1?'Add this event?':'Add these '+n+' events?');
+    const body=`<p class="bk-p">${when?'Made on '+esc(when)+'. ':''}${n===1?'The file has one event:':'The file has '+n+' events:'}</p><ul class="rs-list">${items}</ul>`;
+    const foot=nConf
+      ?`<button class="btn block" data-act="importUpdate">${nConf===1?'Update my copy':'Update my copies'}</button><p class="hint mt0">Replaces your copy with the file's version. Payments you have ticked stay ticked.</p><button class="btn outline block" data-act="importKeep">Keep both</button><p class="hint mt0">Adds the file's version as a new event next to yours.</p>`
+      :`<button class="btn block" data-act="importAdd">${n===1?'Add event':'Add '+n+' events'}</button>`;
+    return shell(title,body,foot);
+  }
+  const have=S.events.length;
+  const items=r.events.map(e=>`<li class="rs-item"><b>${esc(e.name)}</b><span class="muted">${esc(info(e))}</span></li>`).join('');
+  const body=`<p class="bk-p">${when?'Saved on '+esc(when)+'. ':''}It has ${plural(r.events.length,'event')}:</p><ul class="rs-list">${items}</ul>`;
+  const foot=have
+    ?`<button class="btn block" data-act="restoreAdd">Add to current events</button><p class="hint mt0">Only adds events that are not already on this device.</p><button class="btn danger block" data-act="restoreReplace">Replace everything on this device</button><p class="hint mt0">This removes the ${plural(have,'event')} that ${have===1?'is':'are'} here now.</p>`
+    :`<button class="btn block" data-act="restoreReplace">Restore ${plural(r.events.length,'event')}</button>`;
+  return shell('Restore this backup?',body,foot);
+}
+function markBackup(){S.lastBackup=Date.now();save();if(!curEv())render();}
+async function copyBackup(){
+  const text=makeBackup(S),ta=$('#bkText');
+  let ok=false;
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(text);ok=true;}}catch(e){}
+  if(!ok&&ta){
+    ta.hidden=false;ta.value=text;
+    try{ta.focus();ta.select();ta.setSelectionRange(0,text.length);ok=document.execCommand('copy');}catch(e){}
+  }
+  if(ok){markBackup();toast('Backup copied. Paste it somewhere safe.');}
+  else{if(ta){ta.hidden=false;ta.value=text;ta.focus();ta.select();}toast('Copy the text below by hand');}
+}
+async function saveBackupFile(){
+  if(!canSaveFile())return;
+  try{
+    await saveFile('evenly-backup-'+dateStamp()+'.json',makeBackup(S,'backup'));
+    markBackup();toast(DL?'Backup saved':'Backup downloaded');
+  }catch(e){
+    const c=e&&e.code;
+    if(c==='declined')toast('Backup not saved');
+    else if(c==='rate_limited')toast('One moment, then try again');
+    else toast('Could not save the file. Try Copy backup text.');
+  }
+}
+function startRestore(text){
+  const r=parseBackup(text);
+  if(r.err){setErr('#rsErr',r.err);return;}
+  r.mode=(ui.sheet&&ui.sheet.type==='import')?'add':'restore';
+  ui.pendingRestore=r;
+  openSheet({type:'restore'});
+}
+function readBackupFile(f){
+  if(f.size>5*1024*1024){setErr('#rsErr','That file is too big to be an Evenly backup.');return;}
+  const fr=new FileReader();
+  fr.onload=()=>startRestore(String(fr.result||''));
+  fr.onerror=()=>setErr('#rsErr','Could not read that file.');
+  fr.readAsText(f);
+}
+
+/* ---------- share one event, add an event from a file ---------- */
+const slug=t=>String(t).toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-+|-+$/g,'').slice(0,30).replace(/-+$/,'')||'event';
+const eventFileName=ev=>'evenly-'+slug(ev.name)+'-'+dateStamp()+'.json';
+const eventText=ev=>makeBackup({events:[ev]},'event');
+
+function shareEventSheet(){
+  const ev=curEv();if(!ev)return '';
+  const btns=[];
+  if(canSaveFile())btns.push(['saveEventFile','download','Save event file']);
+  if(typeof navigator!=='undefined'&&navigator.share)btns.push(['shareEventText','share','Share event text']);
+  btns.push(['copyEventText','copy','Copy event text']);
+  const html=btns.map((b,i)=>`<button class="btn ${i?'outline ':''}block" data-act="${b[0]}">${icon(b[1],18)}${b[2]}</button>`).join('');
+  const body=`<p class="bk-p">Send this to your group. They open Evenly, tap <b>Add event from file</b> and choose the file, or paste the text. Each person gets their own copy, with all the people and expenses.</p>
+    <div class="bk-actions">${html}</div>
+    <textarea id="evText" class="textarea mono mt12" rows="6" readonly hidden></textarea>
+    <p class="hint">Files and text both work. If someone cannot open files on their phone, the text is the easy way.</p>`;
+  return shell('Share this event',body,'');
+}
+function importSheet(){
+  const body=`<p class="bk-p">Got an event file from someone in your group? Add it here to get your own copy.</p>
+    ${restoreControls('Choose event file','Or paste the event text','Add from text')}`;
+  return shell('Add event from file',body,'');
+}
+async function saveEventFile(){
+  const ev=curEv();if(!ev||!canSaveFile())return;
+  try{
+    await saveFile(eventFileName(ev),eventText(ev));
+    toast(DL?'Event file saved':'Event file downloaded');
+  }catch(e){
+    const c=e&&e.code;
+    if(c==='declined')toast('Event file not saved');
+    else if(c==='rate_limited')toast('One moment, then try again');
+    else toast('Could not save the file. Try Copy event text.');
+  }
+}
+async function copyEventText(){
+  const ev=curEv();if(!ev)return;
+  const text=eventText(ev),ta=$('#evText');
+  let ok=false;
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(text);ok=true;}}catch(e){}
+  if(!ok&&ta){
+    ta.hidden=false;ta.value=text;
+    try{ta.focus();ta.select();ta.setSelectionRange(0,text.length);ok=document.execCommand('copy');}catch(e){}
+  }
+  if(ok)toast('Event text copied. Paste it into your group chat.');
+  else{if(ta){ta.hidden=false;ta.value=text;ta.focus();ta.select();}toast('Copy the text below by hand');}
+}
+function applyImport(how){
+  const r=ui.pendingRestore;if(!r)return;
+  const res=mergeImport(S.events,r.events,how,uid,Date.now());
+  S.events=res.events;
+  const bits=[];
+  if(res.added)bits.push(plural(res.added,'event')+' added');
+  if(res.updated)bits.push(plural(res.updated,'event')+' updated');
+  if(res.copied)bits.push(plural(res.copied,'event')+' added as '+(res.copied===1?'a copy':'copies'));
+  if(r.events.length===1&&res.last){S.currentId=res.last.id;S.tab='settle';}
+  save();closeSheet();render();window.scrollTo(0,0);
+  toast(bits.join(', '));
+}
+
+function restoreControls(fileLabel,textLabel,submitLabel){
+  return `<div class="btn outline block file-btn">${icon('upload',18)}${fileLabel}<input id="rsFile" class="file-over" type="file" aria-label="${fileLabel}"></div>
+    <p class="hint">Nothing opens when you tap it? Some phones cannot pick files from inside this app. Paste the text instead.</p>
+    <div class="lbl-row"><label class="lbl" for="rsText">${textLabel}</label><button type="button" class="link" data-act="pasteClipboard">Paste from clipboard</button></div>
+    <textarea id="rsText" class="textarea mono" rows="4" placeholder="Paste the text here"></textarea>
+    <p class="err" id="rsErr" role="alert"></p>
+    <button class="btn block gap" data-act="restoreText">${submitLabel}</button>`;
+}
+async function pasteClipboard(){
+  const ta=$('#rsText');if(!ta)return;
+  let t=null;
+  try{t=await navigator.clipboard.readText();}catch(e){t=null;}
+  if(t&&t.trim()){ta.value=t;startRestore(t);return;}
+  ta.focus();
+  toast(t===null?'Press and hold in the box, then choose Paste':'Nothing to paste yet. Copy the text first.');
+}
+async function shareEventText(){
+  const ev=curEv();if(!ev)return;
+  try{await navigator.share({title:ev.name,text:eventText(ev)});}
+  catch(e){if(!e||e.name!=='AbortError')copyEventText();}
+}
+
 /* ---------- events ---------- */
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-act]');if(!t)return;
@@ -926,10 +1401,21 @@ document.addEventListener('input',e=>{
     if(v!==e.target.value)e.target.value=v;
     d.amountStr=v;
   }else if(f==='title'){d.title=e.target.value;}
+  else if(f==='sv'){
+    const v=e.target.value.replace(/[^\d.,\s]/g,'');
+    if(v!==e.target.value)e.target.value=v;
+    (d.mode==='shares'?d.valsS:d.valsA)[e.target.dataset.id]=v;
+  }
+  updateSplitRows();
   const p=$('#expPreview');if(p)p.innerHTML=previewHtml(ev,d);
   setErr('#expErr','');
 });
 document.addEventListener('change',e=>{
+  if(e.target.id==='rsFile'){
+    const f=e.target.files&&e.target.files[0];
+    if(f)readBackupFile(f);
+    return;
+  }
   if(e.target.dataset&&e.target.dataset.field==='reuse'){
     const src=S.events.find(x=>x.id===e.target.value),ta=$('#neOthers'),co=($('#neCoord').value||'').trim().toLowerCase();
     if(src&&ta)ta.value=src.members.map(m=>m.name).filter(n=>n.toLowerCase()!==co).join(', ');
