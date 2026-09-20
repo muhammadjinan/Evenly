@@ -8,4 +8,5 @@ For trips, games and events where different people pay for different things. It 
 3. Open Settle up to see who pays whom: everyone through one person (the coordinator), or directly between members.
 4. Tap Share summary to post the result in the group chat.
 
+[!NOTE]
 Your data stays on your own device.
