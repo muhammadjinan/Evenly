@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "Evenly",
+  "short_name": "Evenly",
+  "description": "Split group costs fairly: who paid, who it was for, who owes whom.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#EEF3EF",
+  "theme_color": "#0D6A54",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

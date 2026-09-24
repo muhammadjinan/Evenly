@@ -2,12 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4nS5dXfug6o5mABoptQ1mfXhQyGW7JaarGYyA5By3ZE='; style-src 'sha256-exC4zlPnW6HedZwKVl4TMKrEmfMX/BerymDUypUeEhQ='; img-src 'self' blob: data:; connect-src 'self'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
 <title>Evenly: split group costs fairly</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%BE%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-512.png">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#0D6A54">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F4B3C">
 <style>
 :root{
   --paper:#EEF3EF;--panel:#FFFFFF;--panel-2:#F5F8F6;--ink:#0E241C;--muted:#4F6B5F;--line:#C9D8CF;
@@ -17,8 +21,8 @@
   --hero:#0D6A54;--hero-ink:#FFFFFF;
   --toast-bg:#0E241C;--toast-ink:#EEF3EF;--toast-link:#F2A93B;
   --av-s:55%;--av-l:84%;--av-ink-s:50%;--av-ink-l:22%;
-  --f-display:"Barlow Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
-  --f-body:"Barlow","Helvetica Neue",Arial,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-display:"Barlow Condensed","Avenir Next Condensed","HelveticaNeue-CondensedBold","Roboto Condensed","Arial Narrow",sans-serif-condensed,"Helvetica Neue",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
@@ -146,7 +150,7 @@ button.led-row:active{background:var(--panel-2)}
 .chip.text{padding:0 14px}
 .chip.text.sm{min-height:34px;font-size:14.5px;padding:0 12px;background:var(--panel-2)}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;border-radius:14px;background:var(--panel-2);border:1.5px solid var(--line);margin-top:16px}
-.seg button{min-height:44px;padding:0 10px;border-radius:10px;font-weight:600;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.seg button{min-height:44px;padding:6px 8px;border-radius:10px;font-weight:600;line-height:1.15;color:var(--muted);display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere;text-align:center}
 .seg button.on{background:var(--court);color:var(--court-ink)}
 
 /* text blocks */
@@ -210,10 +214,47 @@ button.led-row:active{background:var(--panel-2)}
 .sheet-body{flex:1;min-height:0;overflow-y:auto;padding:2px 18px 16px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .sheet-foot{flex:none;display:grid;gap:10px;padding:12px 18px calc(14px + env(safe-area-inset-bottom,0px));border-top:1.5px solid var(--line);background:var(--panel)}
 .foot-row{display:flex;gap:10px}
-.foot-row>*{flex:1}
+.foot-row>*{flex:1;min-width:0}
+.foot-row .btn{padding:0 12px;white-space:normal;line-height:1.15}
 .preview{padding:10px 12px;border-radius:12px;background:var(--panel-2);border:1.5px dashed var(--line);font-size:15.5px;line-height:1.35}
 .pv-sub{margin-top:3px;font-size:14px;color:var(--muted)}
 .confirm-text{font-size:17px;padding:4px 0 8px}
+.sheet .seg{margin-top:0}
+.srows{margin-top:10px;border:1.5px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
+.srow{display:flex;align-items:center;gap:10px;padding:8px 12px;min-height:56px}
+.srow+.srow{border-top:1px solid var(--line)}
+.srow-name{flex:1;min-width:0;font-weight:600;font-size:16.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow-in{display:flex;align-items:center;gap:4px;padding:0 10px;height:44px;width:132px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel-2)}
+.srow.s .srow-in{width:84px}
+.srow-in:focus-within{outline:2.5px solid var(--court);outline-offset:1px}
+.srow-in .pre{color:var(--muted);font-weight:600}
+.srow-in input{width:100%;min-width:0;border:0;background:transparent;outline:none;font-family:var(--f-display);font-weight:700;font-size:22px;text-align:right;color:var(--ink);padding:0}
+.srow-in input::placeholder{color:var(--muted);opacity:.75}
+.calc{min-width:68px;text-align:right;font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--muted)}
+.pv-err{color:var(--danger);font-weight:600}
+.bk-p{font-size:15.5px;margin-top:6px}
+.bk-actions{display:grid;gap:10px;margin-top:12px}
+.file-btn{position:relative;overflow:hidden;margin-top:12px;cursor:pointer}
+.file-btn:focus-within{outline:2.5px solid var(--court);outline-offset:2px}
+.file-over{position:absolute;top:0;left:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;font-size:120px}
+.rs-list{margin-top:10px;border:1.5px solid var(--line);border-radius:14px;overflow:hidden}
+.rs-item{display:flex;flex-direction:column;gap:1px;padding:10px 14px;font-size:16px}
+.rs-item+.rs-item{border-top:1px solid var(--line)}
+.rs-item .muted{font-size:14px}
+.rs-warn{color:var(--neg);font-size:14px}
+.ledger.spaced{margin-top:24px}
+.mt0{margin-top:0}
+.mt8{margin-top:8px}
+.mt12{margin-top:12px}
+.mt26{margin-top:26px}
+.mt10{margin-top:10px}
+.led-row:disabled{opacity:.5;cursor:not-allowed}
+.img-wrap{margin-top:14px;border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel-2);min-height:120px}
+.img-prev{display:block;width:100%;height:auto}
+.rem-row{display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:64px}
+.rem-row .led-main{flex:1;min-width:0}
+.foot-note .link{padding:0 2px;font-size:inherit;font-weight:600;text-decoration:underline}
+.install-row .ev-ic{background:var(--court);color:var(--court-ink)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 @keyframes rise{from{transform:translateY(28px)}to{transform:none}}
 @media (min-width:600px){.overlay{align-items:center}.sheet{border-radius:22px;max-height:88%}}
@@ -226,6 +267,7 @@ button.led-row:active{background:var(--panel-2)}
 </style>
 </head>
 <body>
+<noscript><div class="wrap"><p class="hint">Evenly needs JavaScript to run.</p></div></noscript>
 <div id="app"></div>
 <div id="sheetRoot"></div>
 <div id="toastRoot" aria-live="polite"></div>
@@ -251,7 +293,7 @@ function compute(ev){
     if(!(e.payer in r.paid))continue;
     const ids=Array.from(new Set(e.forIds)).filter(id=>id in r.paid);
     if(!ids.length)continue;
-    const sh=splitEqual(e.amount,ids);
+    const sh=expenseShares(e,ids);
     let own=0;
     r.total+=e.amount;
     r.paid[e.payer]+=e.amount;
@@ -354,14 +396,254 @@ function parseAmount(str){
   if(f.length>2&&f.charAt(2)>='5')minor+=1;
   return isFinite(minor)?minor:NaN;
 }
+
+/* ---- unequal splits ---- */
+/* Split an amount (minor units) in proportion to weights. Leftover paise go to the largest remainders. */
+function splitByWeights(amount,ids,weights){
+  const W=weights.map(w=>Math.round(w*100)),tot=W.reduce((a,b)=>a+b,0);
+  const q=[],r=[];
+  let used=0;
+  for(let i=0;i<ids.length;i++){
+    const num=amount*W[i];
+    let qi=Math.floor(num/tot),ri=num-qi*tot;
+    while(ri<0){qi--;ri+=tot;}
+    while(ri>=tot){qi++;ri-=tot;}
+    q.push(qi);r.push(ri);used+=qi;
+  }
+  const left=amount-used;
+  const order=ids.map((_,i)=>i).sort((a,b)=>r[b]-r[a]||a-b);
+  for(let k=0;k<left;k++)q[order[k]]++;
+  const out={};
+  ids.forEach((id,i)=>{out[id]=q[i];});
+  return out;
+}
+
+/* "By amount": people with a typed amount are fixed; everyone else shares what is left equally. */
+function resolveAmounts(amount,ids,fixed){
+  const out={},auto=[];
+  let sumFixed=0,nFixed=0;
+  for(const id of ids){
+    const v=fixed[id];
+    if(v==null)auto.push(id);
+    else{out[id]=v;sumFixed+=v;nFixed++;}
+  }
+  const rest=amount-sumFixed;
+  if(auto.length){
+    if(rest<0)return {ok:false,over:-rest,nFixed};
+    const sh=splitEqual(rest,auto);
+    for(const id of auto)out[id]=sh[id];
+    return {ok:true,shares:out,rest,auto,nFixed};
+  }
+  if(rest<0)return {ok:false,over:-rest,nFixed};
+  if(rest>0)return {ok:false,left:rest,nFixed};
+  return {ok:true,shares:out,rest:0,auto:[],nFixed};
+}
+
+/* The per-person shares of one expense: the stored uneven shares when they are valid, otherwise equal. */
+function expenseShares(e,ids){
+  if(e.sh&&typeof e.sh==='object'){
+    let s=0,ok=Object.keys(e.sh).length===ids.length;
+    for(const id of ids){const v=e.sh[id];if(!Number.isInteger(v)||v<0){ok=false;break;}s+=v;}
+    if(ok&&s===e.amount)return e.sh;
+  }
+  return splitEqual(e.amount,ids);
+}
+
+const parseWeight=raw=>{const m=parseAmount(raw);return Number.isNaN(m)?NaN:m/100;};
+
+/* Turns the add/edit form into per-person shares, or says what is wrong. */
+function resolveDraft(ev,d){
+  const amt=parseAmount(d.amountStr);
+  const ids=ev.members.filter(m=>d.forIds.indexOf(m.id)>=0).map(m=>m.id);
+  const nameOf=id=>{const m=ev.members.find(x=>x.id===id);return m?m.name:'?';};
+  const base={amt,ids,mode:d.mode||'equal'};
+  if(!(amt>0)||!ids.length)return Object.assign(base,{ok:false,idle:true});
+  if(base.mode==='shares'){
+    const w=[];
+    for(const id of ids){
+      const raw=String((d.valsS||{})[id]||'').trim();
+      const v=raw===''?1:parseWeight(raw);
+      if(!(v>0&&v<=100))return Object.assign(base,{ok:false,err:'Shares for '+nameOf(id)+' must be between 0.01 and 100.'});
+      w.push(v);
+    }
+    return Object.assign(base,{ok:true,weights:w,shares:splitByWeights(amt,ids,w)});
+  }
+  if(base.mode==='amount'){
+    const fixed={};
+    for(const id of ids){
+      const raw=String((d.valsA||{})[id]||'').trim();
+      if(raw===''){fixed[id]=null;continue;}
+      const v=parseAmount(raw);
+      if(!(v>=0))return Object.assign(base,{ok:false,err:'Check the amount for '+nameOf(id)+'.'});
+      fixed[id]=v;
+    }
+    return Object.assign(base,{fixed},resolveAmounts(amt,ids,fixed));
+  }
+  return Object.assign(base,{ok:true,shares:splitEqual(amt,ids)});
+}
+
+/* ---- data helpers ---- */
+const HUES=8;
+let _c=0;
+const uid=()=>Date.now().toString(36)+(_c++).toString(36)+Math.random().toString(36).slice(2,5);
+
+const CURRENCIES=['₹','$','€','£','AED','SAR','QAR','OMR','KWD','BHD','MYR','S$',''];
+const isId=x=>typeof x==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(x);
+const DONE_KEY=/^[hd]_[A-Za-z0-9][A-Za-z0-9_-]*_[A-Za-z0-9][A-Za-z0-9_-]*_\d{1,12}$/;
+
+/* Cleans one event coming from storage or from a file. Anything unexpected is dropped or replaced,
+   because files can come from other people. */
+function normEvent(e){
+  if(!e||typeof e!=='object')return null;
+  const seen=new Set();
+  const members=(Array.isArray(e.members)?e.members:[]).slice(0,100)
+    .filter(m=>m&&isId(m.id)&&typeof m.name==='string'&&m.name.trim()!==''&&!seen.has(m.id)&&seen.add(m.id))
+    .map((m,i)=>({id:m.id,name:m.name.slice(0,24),h:Number.isInteger(m.h)?((m.h%HUES)+HUES)%HUES:i%HUES}));
+  if(!members.length)return null;
+  const ids=new Set(members.map(m=>m.id));
+  const expenses=(Array.isArray(e.expenses)?e.expenses:[]).slice(0,5000)
+    .filter(x=>x&&ids.has(x.payer)&&Number.isFinite(x.amount)&&x.amount>0&&x.amount<=1e11&&Array.isArray(x.forIds))
+    .map(x=>{
+      const rec={id:isId(x.id)?x.id:uid(),title:String(x.title||'Expense').slice(0,40),amount:Math.round(x.amount),payer:x.payer,forIds:Array.from(new Set(x.forIds.slice(0,200).filter(i=>ids.has(i)))),at:Number(x.at)||Date.now()};
+      if((x.mode==='shares'||x.mode==='amount')&&x.sh&&typeof x.sh==='object'&&rec.forIds.length){
+        let s=0,ok=Object.keys(x.sh).length===rec.forIds.length;
+        for(const id of rec.forIds){const v=x.sh[id];if(!Number.isInteger(v)||v<0){ok=false;break;}s+=v;}
+        if(ok&&s===rec.amount){
+          rec.mode=x.mode;rec.sh={};rec.vals={};
+          rec.forIds.forEach(id=>{rec.sh[id]=x.sh[id];const t=x.vals&&x.vals[id];if(typeof t==='string'&&t.length<=12)rec.vals[id]=t;});
+        }
+      }
+      return rec;
+    })
+    .filter(x=>x.forIds.length);
+  const done={};
+  if(e.done&&typeof e.done==='object'){
+    let n=0;
+    for(const k of Object.keys(e.done)){if(n>=3000)break;if(DONE_KEY.test(k)&&e.done[k]){done[k]=1;n++;}}
+  }
+  return {id:isId(e.id)?e.id:uid(),name:String(e.name||'Event').slice(0,40),currency:CURRENCIES.indexOf(e.currency)>=0?e.currency:'₹',createdAt:Number(e.createdAt)||Date.now(),coordId:ids.has(e.coordId)?e.coordId:members[0].id,members,expenses,mode:e.mode==='direct'?'direct':'hub',done};
+}
+
+/* kind: 'backup' for everything on the device, 'event' for one event shared with a group. */
+function makeBackup(state,kind){
+  const o={app:'evenly',version:1,kind:kind||'backup',savedAt:new Date().toISOString(),events:state.events};
+  if(state.lastCoord!=null)o.lastCoord=state.lastCoord;
+  if(state.lastCur!=null)o.lastCur=state.lastCur;
+  return JSON.stringify(o);
+}
+function parseBackup(text){
+  const raw=String(text==null?'':text).trim();
+  if(!raw)return {err:'Choose a file or paste the text first.'};
+  const a=raw.indexOf('{'),b=raw.lastIndexOf('}');
+  if(a<0||b<a)return {err:'That does not look like an Evenly file.'};
+  let d;
+  try{d=JSON.parse(raw.slice(a,b+1));}catch(e){return {err:'The text is incomplete or damaged. Copy it again in full and retry.'};}
+  if(!d||d.app!=='evenly'||!Array.isArray(d.events))return {err:'That does not look like an Evenly file.'};
+  const seen=new Set(),events=[];
+  for(const x of d.events.slice(0,200)){const n=normEvent(x);if(n&&!seen.has(n.id)){seen.add(n.id);events.push(n);}}
+  if(!events.length)return {err:'This file has no events in it.'};
+  return {events,kind:d.kind==='event'?'event':'backup',savedAt:typeof d.savedAt==='string'?d.savedAt:null,lastCoord:typeof d.lastCoord==='string'?d.lastCoord.slice(0,24):null,lastCur:CURRENCIES.indexOf(d.lastCur)>=0?d.lastCur:null};
+}
+
+/* What makes two copies of an event "the same": people and expenses, not ticks or view mode. */
+const contentKey=e=>JSON.stringify([e.name,e.currency,e.coordId,e.members.map(m=>[m.id,m.name]),e.expenses.map(x=>[x.id,x.title,x.amount,x.payer,x.forIds,x.sh||null])]);
+
+/* Adds events from a file. Events you do not have are added. For ones you already have, how='update'
+   replaces your copy (keeping your ticked payments) and anything else adds the file's version as a copy. */
+function mergeImport(local,incoming,how,newId,now){
+  const events=local.slice(),res={events,added:0,updated:0,copied:0,last:null};
+  for(const e of incoming){
+    const i=events.findIndex(x=>x.id===e.id);
+    if(i<0){const n=Object.assign({},e,{createdAt:now});events.push(n);res.added++;res.last=n;}
+    else if(how==='update'){
+      const l=events[i],n=Object.assign({},e,{createdAt:l.createdAt,done:Object.assign({},e.done,l.done)});
+      events[i]=n;res.updated++;res.last=n;
+    }else{
+      const n=Object.assign({},e,{id:newId(),name:e.name.slice(0,33)+' (copy)',createdAt:now});
+      events.push(n);res.copied++;res.last=n;
+    }
+  }
+  return res;
+}
+
+/* ---- settlement plan for one event ---- */
+const tkey=(hubOn,t)=>(hubOn?'h':'d')+'_'+t.from+'_'+t.to+'_'+t.amt;
+function getPlan(ev,calc){
+  const hubOn=ev.mode!=='direct';
+  if(hubOn){
+    const p=planHub(ev,calc);
+    return {hubOn,collect:p.collect,payout:p.payout,transfers:p.collect.concat(p.payout)};
+  }
+  const ord=id=>ev.members.findIndex(m=>m.id===id);
+  const t=planDirect(ev,calc).sort((a,b)=>ord(a.from)-ord(b.from)||b.amt-a.amt);
+  return {hubOn,collect:[],payout:[],transfers:t};
+}
+/* Payments someone still has to make: in coordinator mode only what people owe the coordinator. */
+function unpaidList(ev,P){return (P.hubOn?P.collect:P.transfers).filter(t=>!ev.done[tkey(P.hubOn,t)]);}
+
+/* ---- repeat an event ---- */
+function nextEventName(name,dateLabel){
+  const base=String(name).replace(/\s*\((?:\d{1,2}\s+[A-Za-z]{3,}|[A-Za-z]{3,}\s+\d{1,2})\)$/,'').trim()||'Event';
+  const suffix=' ('+dateLabel+')';
+  return base.slice(0,Math.max(1,40-suffix.length))+suffix;
+}
+/* Same people, coordinator and settings; optionally the same expenses. Ticked payments never carry over. */
+function cloneEvent(ev,name,withExpenses,newId,now){
+  const map={};
+  const members=ev.members.map(m=>{const id=newId();map[m.id]=id;return {id,name:m.name,h:m.h};});
+  const out={id:newId(),name:String(name).slice(0,40),currency:ev.currency,createdAt:now,coordId:map[ev.coordId]||members[0].id,members,expenses:[],mode:ev.mode,done:{}};
+  if(withExpenses){
+    out.expenses=ev.expenses.map(x=>{
+      const rec={id:newId(),title:x.title,amount:x.amount,payer:map[x.payer],forIds:x.forIds.map(i=>map[i]),at:now};
+      if(x.mode&&x.sh){
+        rec.mode=x.mode;rec.sh={};rec.vals={};
+        Object.keys(x.sh).forEach(k=>{rec.sh[map[k]]=x.sh[k];});
+        Object.keys(x.vals||{}).forEach(k=>{rec.vals[map[k]]=x.vals[k];});
+      }
+      return rec;
+    });
+  }
+  return out;
+}
+
+/* ---- WhatsApp reminder texts (items: {from,to,fromName,toName,amt}) ---- */
+const listJoin=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+function reminderGroup(eventName,coordName,hubOn,items,money){
+  const L=[eventName+': reminder',hubOn?'Please pay '+coordName+':':'Payments still to make:'];
+  items.forEach(t=>L.push(hubOn?'\u2022 '+t.fromName+': '+money(t.amt):'\u2022 '+t.fromName+' pays '+t.toName+': '+money(t.amt)));
+  L.push('Thank you!');
+  return L.join('\n');
+}
+function reminderPerson(eventName,name,items,money){
+  return 'Hi '+name+', a quick reminder for '+eventName+': please pay '+listJoin(items.map(t=>t.toName+' '+money(t.amt)))+'. Thank you!';
+}
+function payersOf(ev,items){
+  const map={};
+  items.forEach(t=>{const e=map[t.from]||(map[t.from]={id:t.from,name:t.fromName,items:[],total:0});e.items.push(t);e.total+=t.amt;});
+  return ev.members.map(m=>map[m.id]).filter(Boolean);
+}
+
+/* ---- what the shared image shows ---- */
+function resultModel(ev,calc,P,withBalances,money,dateLabel){
+  const nm=id=>{const m=ev.members.find(x=>x.id===id);return m?m.name:'?';};
+  const row=(t,name)=>({name,amount:money(t.amt),done:!!ev.done[tkey(P.hubOn,t)]});
+  const coord=nm(ev.coordId),sections=[];
+  if(!P.transfers.length)sections.push({title:'All square',rows:[{name:'Nobody owes anyone',amount:'',done:false,plain:true}]});
+  else if(P.hubOn){
+    if(P.collect.length)sections.push({title:'Pay '+coord,rows:P.collect.map(t=>row(t,nm(t.from)))});
+    if(P.payout.length)sections.push({title:coord+' pays',rows:P.payout.map(t=>row(t,nm(t.to)))});
+  }else sections.push({title:'Payments',rows:P.transfers.map(t=>row(t,nm(t.from)+' pays '+nm(t.to)))});
+  const balances=withBalances?ev.members.map(m=>{
+    const n=calc.net[m.id];
+    return {name:m.name,text:n===0?'Even':(n>0?'gets ':'owes ')+money(Math.abs(n)),sign:n>0?1:n<0?-1:0};
+  }):null;
+  return {title:ev.name,total:money(calc.total),date:dateLabel,sections,balances};
+}
 /*</logic>*/
 
 /* ---------- helpers ---------- */
 const $=(s,r)=>(r||document).querySelector(s);
-let _c=0;
-const uid=()=>Date.now().toString(36)+(_c++).toString(36)+Math.random().toString(36).slice(2,5);
 const esc=s=>String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const HUES=8;
 const CURS=[['₹','₹ Indian rupee'],['$','$ Dollar'],['€','€ Euro'],['£','£ Pound'],['AED','AED UAE dirham'],['SAR','SAR Saudi riyal'],['QAR','QAR Qatari riyal'],['OMR','OMR Omani rial'],['KWD','KWD Kuwaiti dinar'],['BHD','BHD Bahraini dinar'],['MYR','MYR Malaysian ringgit'],['S$','S$ Singapore dollar'],['','No symbol']];
 
 const IC={
@@ -378,6 +660,11 @@ const IC={
   share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
   copy:'<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   crown:'<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+  bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
   alert:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
 };
 const icon=(n,s)=>`<svg class="ic" width="${s||20}" height="${s||20}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]||''}</svg>`;
@@ -386,21 +673,14 @@ const MARK='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="
 
 /* ---------- state and storage ---------- */
 const KEY='evenly.v1';
-let S={v:1,events:[],currentId:null,tab:'expenses',lastCoord:'Jinan',lastCur:'₹'};
+let S={v:1,events:[],currentId:null,tab:'expenses',lastCoord:'Jinan',lastCur:'₹',lastBackup:0};
 let storageOk=true;
-const ui={sheet:null,confirmFn:null,toastAction:null};
+const ui={sheet:null,confirmFn:null,toastAction:null,pendingRestore:null};
+let deferredInstall=null;
+let appInstalled=(()=>{try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(e){return false;}})();
+window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredInstall=e;if(!curEv())render();});
+window.addEventListener('appinstalled',()=>{deferredInstall=null;appInstalled=true;toast('Installed. Open it from your home screen.');if(!curEv())render();});
 
-function normEvent(e){
-  if(!e||typeof e!=='object')return null;
-  const members=(Array.isArray(e.members)?e.members:[]).filter(m=>m&&m.id&&m.name).map((m,i)=>({id:String(m.id),name:String(m.name).slice(0,24),h:Number.isInteger(m.h)?((m.h%HUES)+HUES)%HUES:i%HUES}));
-  if(!members.length)return null;
-  const ids=new Set(members.map(m=>m.id));
-  const expenses=(Array.isArray(e.expenses)?e.expenses:[])
-    .filter(x=>x&&ids.has(x.payer)&&Number.isFinite(x.amount)&&x.amount>0&&Array.isArray(x.forIds))
-    .map(x=>({id:String(x.id||uid()),title:String(x.title||'Expense').slice(0,40),amount:Math.round(x.amount),payer:x.payer,forIds:Array.from(new Set(x.forIds.filter(i=>ids.has(i)))),at:Number(x.at)||Date.now()}))
-    .filter(x=>x.forIds.length);
-  return {id:String(e.id||uid()),name:String(e.name||'Event').slice(0,40),currency:typeof e.currency==='string'?e.currency:'₹',createdAt:Number(e.createdAt)||Date.now(),coordId:ids.has(e.coordId)?e.coordId:members[0].id,members,expenses,mode:e.mode==='direct'?'direct':'hub',done:(e.done&&typeof e.done==='object')?e.done:{}};
-}
 function load(){
   try{
     const raw=localStorage.getItem(KEY);
@@ -433,7 +713,6 @@ const avatar=(m,cls)=>`<span class="avatar h${m?m.h:0} ${cls||''}" aria-hidden="
 const ledger=rows=>`<ul class="ledger">${rows.map(r=>`<li>${r}</li>`).join('')}</ul>`;
 const emptyBlock=(ic,title,text,action)=>`<div class="empty"><div class="empty-ic">${icon(ic,26)}</div><h3>${title}</h3><p>${text}</p>${action||''}</div>`;
 const plural=(n,w)=>n+' '+w+(n===1?'':'s');
-const tkey=(hubOn,t)=>(hubOn?'h':'d')+'_'+t.from+'_'+t.to+'_'+t.amt;
 
 function eachLabel(ev,amount,ids){
   const vals=Object.values(splitEqual(amount,ids)),lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);
@@ -443,16 +722,8 @@ function forLabel(ev,e){
   if(e.forIds.length===ev.members.length)return 'everyone ('+e.forIds.length+')';
   return e.forIds.map(id=>nm(ev,id)).join(', ');
 }
-function getPlan(ev,calc){
-  const hubOn=ev.mode!=='direct';
-  if(hubOn){
-    const p=planHub(ev,calc);
-    return {hubOn,collect:p.collect,payout:p.payout,transfers:p.collect.concat(p.payout)};
-  }
-  const ord=id=>ev.members.findIndex(m=>m.id===id);
-  const t=planDirect(ev,calc).sort((a,b)=>ord(a.from)-ord(b.from)||b.amt-a.amt);
-  return {hubOn,collect:[],payout:[],transfers:t};
-}
+const isUneven=e=>e.mode==='shares'||e.mode==='amount';
+function shareLabel(ev,e){return e.forIds.map(id=>nm(ev,id)+' '+M(ev,e.sh[id])).join(', ');}
 
 /* ---------- views ---------- */
 function homeView(){
@@ -466,6 +737,9 @@ function homeView(){
       ${icon('chev',18)}</button>`;
   });
   const banner=storageOk?'':`<div class="note warn">${icon('alert',18)}<span>This browser is not letting the page save data, so events will be lost when you close it.</span></div>`;
+  const installRow=(deferredInstall&&!appInstalled)?`<ul class="ledger spaced"><li><button class="led-row install-row" data-act="installApp"><span class="ev-ic">${icon('download',20)}</span><span class="led-main"><span class="led-title">Install app</span><span class="led-sub">Same data, works offline, one tap from your home screen</span></span>${icon('chev',18)}</button></li></ul>`:'';
+  const backupRow=`<ul class="ledger spaced"><li><button class="led-row" data-act="importEvent"><span class="ev-ic">${icon('upload',20)}</span><span class="led-main"><span class="led-title">Add event from file</span><span class="led-sub">Got an event from someone in your group? Add it here</span></span>${icon('chev',18)}</button></li><li><button class="led-row" data-act="backup"><span class="ev-ic">${icon('database',20)}</span><span class="led-main"><span class="led-title">Backup and restore</span><span class="led-sub">Keep a copy of your events, or bring them back</span></span>${icon('chev',18)}</button></li></ul>`;
+  const last=S.lastBackup?'Last backup: '+dateText(S.lastBackup)+'.':'No backup yet.';
   return `<div class="wrap screen">${banner}
     <section class="hero">${COURT}<div class="hero-in">
       <div class="brand"><span class="mark">${MARK}</span><span>Evenly</span></div>
@@ -474,7 +748,9 @@ function homeView(){
       <div class="hero-actions"><button class="btn cork" data-act="newEvent">${icon('plus',20)}New event</button>${evs.length?'':'<button class="btn outline-light" data-act="sample">Try a sample</button>'}</div>
     </div></section>
     ${evs.length?`<div class="sec-row"><h2 class="sec">Your events</h2></div>${ledger(rows)}`:''}
-    <p class="foot-note">Events are saved on this device only.</p>
+    ${installRow}
+    ${backupRow}
+    <p class="foot-note">Events are saved on this device only. ${last} <button class="link" data-act="privacy">Privacy</button></p>
   </div>`;
 }
 
@@ -510,11 +786,14 @@ function peopleView(ev,calc){
 }
 
 function expenseRow(ev,e){
-  const n=e.forIds.length,each=eachLabel(ev,e.amount,e.forIds);
+  const n=e.forIds.length;
+  const line=isUneven(e)
+    ?`Split ${e.mode==='shares'?'by shares':'by amount'}: ${esc(shareLabel(ev,e))}`
+    :`Split ${n} way${n===1?'':'s'}, ${eachLabel(ev,e.amount,e.forIds)}${n>1?' each':''}: ${esc(forLabel(ev,e))}`;
   return `<button class="led-row exp" data-act="editExpense" data-id="${e.id}"><span class="exp-body">
     <span class="exp-top"><span class="led-title">${esc(e.title)}</span><span class="num">${M(ev,e.amount)}</span></span>
     <span class="exp-who">${avatar(mem(ev,e.payer),'xs')}<span>${esc(nm(ev,e.payer))} paid</span></span>
-    <span class="led-sub">Split ${n} way${n===1?'':'s'}, ${each}${n>1?' each':''}: ${esc(forLabel(ev,e))}</span>
+    <span class="led-sub">${line}</span>
   </span></button>`;
 }
 
@@ -522,7 +801,7 @@ function expensesView(ev,calc){
   if(ev.members.length<2)return emptyBlock('users','Add your group first','Add the people who are sharing costs, then log what each of them paid.',`<button class="btn" data-act="tab" data-tab="people">Add people</button>`);
   if(!ev.expenses.length)return emptyBlock('receipt','No expenses yet','Each time someone reports what they paid, tap Add expense and note who paid, how much, and who it was for.','');
   const rows=ev.expenses.slice().reverse().map(e=>expenseRow(ev,e));
-  return `<div class="sec-row" style="margin-top:8px"><h2 class="sec">${M(ev,calc.total)} spent</h2></div>
+  return `<div class="sec-row mt8"><h2 class="sec">${M(ev,calc.total)} spent</h2></div>
     ${ledger(rows)}
     <p class="hint">Tap an expense to edit or delete it.</p>`;
 }
@@ -578,7 +857,8 @@ function settleView(ev,calc){
     <div class="checks">${ck(chk.balanced,'Every person ends up exactly even.','The payments do not add up. Check the expenses.')}${ck(chk.capped,'Nobody gets back more than they spent on others.','Someone would get back more than they spent on others. Check the expenses.')}</div>
     <div class="sec-row"><h2 class="sec">Balances</h2><span class="prog">${M(ev,calc.total)} spent</span></div>
     ${ledger(bal)}
-    <button class="btn outline block gap" style="margin-top:20px" data-act="share">${icon('share',18)}Share summary</button>`;
+    <button class="btn outline block gap mt26" data-act="hub">${icon('share',18)}Share and remind</button>
+    <button class="btn outline block gap" data-act="repeatEvent">${icon('repeat',18)}Repeat this event</button>`;
 }
 
 /* ---------- summary text ---------- */
@@ -597,7 +877,7 @@ function summaryText(ev){
     L.push('');
   }
   L.push('Expenses:');
-  ev.expenses.forEach(e=>L.push('- '+e.title+', '+M(ev,e.amount)+', paid by '+nm(ev,e.payer)+', for '+forLabel(ev,e)));
+  ev.expenses.forEach(e=>L.push('- '+e.title+', '+M(ev,e.amount)+', paid by '+nm(ev,e.payer)+', '+(isUneven(e)?'split by '+(e.mode==='shares'?'shares':'amount')+': '+shareLabel(ev,e):'for '+forLabel(ev,e))));
   return L.join('\n');
 }
 
@@ -623,29 +903,74 @@ function newEventSheet(){
 }
 
 function expenseDraft(ev,e){
-  if(e)return {id:e.id,title:e.title,amountStr:String(e.amount/100),payer:e.payer,forIds:e.forIds.slice()};
-  return {id:null,title:'',amountStr:'',payer:null,forIds:ev.members.map(m=>m.id)};
+  if(e){
+    return {id:e.id,title:e.title,amountStr:String(e.amount/100),payer:e.payer,forIds:e.forIds.slice(),mode:isUneven(e)?e.mode:'equal',valsS:e.mode==='shares'?Object.assign({},e.vals):{},valsA:e.mode==='amount'?Object.assign({},e.vals):{}};
+  }
+  return {id:null,title:'',amountStr:'',payer:null,forIds:ev.members.map(m=>m.id),mode:'equal',valsS:{},valsA:{}};
 }
 
+const rangeLabel=(ev,vals)=>{const lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);return lo===hi?M(ev,lo):M(ev,lo)+' to '+M(ev,hi);};
+
 function previewHtml(ev,d){
-  const amt=parseAmount(d.amountStr),n=d.forIds.length;
-  if(!(amt>0)||!n)return '<span class="muted">Enter the amount and pick who it was for to see the split.</span>';
-  const sh=splitEqual(amt,d.forIds),each=eachLabel(ev,amt,d.forIds);
-  let out=`<div><b>${M(ev,amt)}</b> split ${n} way${n===1?'':'s'}: <b>${each}</b>${n>1?' each':''}</div>`;
+  const R=resolveDraft(ev,d),n=R.ids.length;
+  if(R.idle)return '<span class="muted">Enter the amount and pick who it was for to see the split.</span>';
+  let out='';
+  if(R.mode==='shares'){
+    if(!R.ok)return `<div class="pv-err">${esc(R.err)}</div>`;
+    const tw=R.weights.reduce((a,b)=>a+b,0);
+    out=`<div><b>${M(ev,R.amt)}</b> in ${+tw.toFixed(2)} share${tw===1?'':'s'}: about <b>${M(ev,Math.round(R.amt/tw))}</b> a share</div>`;
+  }else if(R.mode==='amount'){
+    if(R.err)return `<div class="pv-err">${esc(R.err)}</div>`;
+    if(!R.ok)return R.over?`<div class="pv-err">The amounts add up to ${M(ev,R.over)} more than the total.</div>`:`<div class="pv-err">${M(ev,R.left)} of the total is still unassigned.</div>`;
+    if(!R.nFixed){
+      out=`<div><b>${M(ev,R.amt)}</b> split ${n} way${n===1?'':'s'}: <b>${rangeLabel(ev,Object.values(R.shares))}</b>${n>1?' each':''}</div>`;
+    }else if(R.auto.length){
+      const a=R.auto.length;
+      out=`<div><b>${M(ev,R.amt-R.rest)}</b> is fixed. ${a===1?'The other person pays':'The other '+a+' share'} <b>${M(ev,R.rest)}</b>${a>1?': '+rangeLabel(ev,R.auto.map(id=>R.shares[id]))+' each':''}.</div>`;
+    }else out=`<div>All <b>${M(ev,R.amt)}</b> is assigned.</div>`;
+  }else{
+    out=`<div><b>${M(ev,R.amt)}</b> split ${n} way${n===1?'':'s'}: <b>${rangeLabel(ev,Object.values(R.shares))}</b>${n>1?' each':''}</div>`;
+  }
   if(d.payer){
     const p=esc(nm(ev,d.payer));
-    if(d.forIds.indexOf(d.payer)>=0){
-      const own=sh[d.payer],back=amt-own;
+    if(R.ids.indexOf(d.payer)>=0){
+      const own=R.shares[d.payer],back=R.amt-own;
       out+=back>0?`<div class="pv-sub">${p}'s own share (${M(ev,own)}) is not paid back, so ${p} gets back ${M(ev,back)}.</div>`:`<div class="pv-sub">Only for ${p}, so there is nothing to get back.</div>`;
-    }else out+=`<div class="pv-sub">${p} is not in the split, so ${p} gets back the full ${M(ev,amt)}.</div>`;
+    }else out+=`<div class="pv-sub">${p} is not in the split, so ${p} gets back the full ${M(ev,R.amt)}.</div>`;
   }else out+='<div class="pv-sub">Pick who paid.</div>';
   return out;
+}
+
+function splitRowsHtml(ev,d){
+  if(d.mode==='equal')return '';
+  const members=ev.members.filter(m=>d.forIds.indexOf(m.id)>=0);
+  if(!members.length)return '<p class="hint">Tick at least one person above.</p>';
+  const R=resolveDraft(ev,d),isS=d.mode==='shares',vals=(isS?d.valsS:d.valsA)||{};
+  const rows=members.map(m=>{
+    const ph=isS?'1':(R.shares&&R.shares[m.id]!=null?fmt(R.shares[m.id],''):'auto');
+    const calc=isS?`<span class="calc">${R.ok&&R.shares?M(ev,R.shares[m.id]):'\u2013'}</span>`:'';
+    return `<div class="srow ${isS?'s':''}" data-row="${m.id}">${avatar(m,'sm')}<label class="srow-name" for="sv_${m.id}">${esc(m.name)}</label><span class="srow-in">${isS?'':`<span class="pre">${esc(ev.currency)}</span>`}<input id="sv_${m.id}" data-field="sv" data-id="${m.id}" inputmode="decimal" autocomplete="off" placeholder="${esc(ph)}" value="${esc(vals[m.id]||'')}" aria-label="${isS?'Shares':'Amount'} for ${esc(m.name)}"></span>${calc}</div>`;
+  }).join('');
+  const hint=isS?'Give each person a share, such as 2 for a double portion. Leave it blank for 1.':'Type what a person owes. Anyone left blank shares whatever is left equally.';
+  return `<div class="srows">${rows}</div><p class="hint">${hint}</p>`;
+}
+
+function updateSplitRows(){
+  const ev=curEv(),d=ui.sheet&&ui.sheet.draft;
+  if(!ev||!d||d.mode==='equal')return;
+  const R=resolveDraft(ev,d);
+  document.querySelectorAll('.srow').forEach(row=>{
+    const id=row.dataset.row,inp=row.querySelector('input'),calc=row.querySelector('.calc');
+    if(d.mode==='shares'){if(calc)calc.textContent=(R.ok&&R.shares&&R.shares[id]!=null)?M(ev,R.shares[id]):'\u2013';}
+    else if(inp&&inp.value.trim()===''){inp.placeholder=(R.shares&&R.shares[id]!=null)?fmt(R.shares[id],''):'auto';}
+  });
 }
 
 function expenseSheet(ev,d){
   const edit=!!d.id;
   const chip=(m,act,on)=>`<button type="button" class="chip ${on?'on':''}" data-act="${act}" data-id="${m.id}" aria-pressed="${on}">${avatar(m,'sm')}<span>${esc(m.name)}</span></button>`;
   const quick=['Court','Transport','Food','Snacks','Drinks','Stay','Fuel','Tickets'].map(t=>`<button type="button" class="chip text sm" data-act="quickTitle" data-t="${t}">${t}</button>`).join('');
+  const modes=[['equal','Equally'],['shares','By shares'],['amount','By amount']].map(x=>`<button type="button" class="${d.mode===x[0]?'on':''}" data-act="splitMode" data-mode="${x[0]}" aria-pressed="${d.mode===x[0]}">${x[1]}</button>`).join('');
   const body=`<label class="lbl" for="fAmount">Amount</label>
     <div class="money"><span class="cur">${esc(ev.currency)}</span><input id="fAmount" data-field="amount" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(d.amountStr)}"></div>
     <label class="lbl" for="fTitle">What was it for?</label>
@@ -656,7 +981,10 @@ function expenseSheet(ev,d){
     <div class="lbl-row"><span class="lbl">Split between <span id="forCount" class="muted">(${d.forIds.length} of ${ev.members.length})</span></span><span><button type="button" class="link" data-act="forAll">All</button><button type="button" class="link" data-act="forNone">None</button></span></div>
     <div class="chips">${ev.members.map(m=>chip(m,'toggleFor',d.forIds.indexOf(m.id)>=0)).join('')}</div>
     <p class="hint">Tick everyone who shared this cost. Include the payer only if they used it too.</p>
-    ${edit?`<div class="foot-row" style="margin-top:18px"><button class="btn outline sm" data-act="dupExpense">${icon('copy',16)}Duplicate</button><button class="btn danger sm" data-act="delExpense">${icon('trash',16)}Delete</button></div>`:''}`;
+    <div class="lbl">How to split</div>
+    <div class="seg" role="group" aria-label="How to split">${modes}</div>
+    <div id="splitRows">${splitRowsHtml(ev,d)}</div>
+    ${edit?`<div class="foot-row mt26"><button class="btn outline sm" data-act="dupExpense">${icon('copy',16)}Duplicate</button><button class="btn danger sm" data-act="delExpense">${icon('trash',16)}Delete</button></div>`:''}`;
   const foot=`<div id="expPreview" class="preview" aria-live="polite">${previewHtml(ev,d)}</div>
     <p class="err" id="expErr" role="alert"></p>
     <button class="btn block" data-act="saveExpense">${edit?'Save changes':'Add expense'}</button>`;
@@ -684,7 +1012,10 @@ function settingsSheet(ev){
     <input id="sName" class="input" maxlength="40" value="${esc(ev.name)}" autocomplete="off" data-enter="#saveSettings">
     <label class="lbl" for="sCur">Currency</label>
     <select id="sCur" class="select">${curOptions(ev.currency)}</select>
-    <button class="btn danger block gap" style="margin-top:24px" data-act="askDeleteEvent">${icon('trash',18)}Delete event</button>`;
+    <button class="btn outline block gap mt26" data-act="repeatEvent">${icon('repeat',18)}Repeat this event</button>
+    <button class="btn outline block gap" data-act="shareEvent">${icon('download',18)}Share event file</button>
+    <button class="btn outline block gap" data-act="backup">${icon('database',18)}Backup and restore</button>
+    <button class="btn danger block gap" data-act="askDeleteEvent">${icon('trash',18)}Delete event</button>`;
   return shell('Event settings',body,`<button class="btn block" id="saveSettings" data-act="saveSettings">Save changes</button>`);
 }
 
@@ -694,7 +1025,7 @@ function confirmSheet(sh){
 
 function shareSheet(ev){
   const canShare=typeof navigator!=='undefined'&&!!navigator.share;
-  const body=`<p class="hint" style="margin-top:0">Copy this into your group chat.</p><textarea id="shareText" class="textarea mono" rows="12" readonly style="margin-top:10px">${esc(summaryText(ev))}</textarea>`;
+  const body=`<p class="hint mt0">Copy this into your group chat.</p><textarea id="shareText" class="textarea mono mt10" rows="12" readonly>${esc(summaryText(ev))}</textarea>`;
   const foot=`<div class="foot-row"><button class="btn" data-act="copy">${icon('copy',18)}Copy</button>${canShare?`<button class="btn outline" data-act="nativeShare">${icon('share',18)}Share</button>`:''}</div>`;
   return shell('Share summary',body,foot);
 }
@@ -710,6 +1041,15 @@ function renderSheet(){
   else if(sh.type==='settings'&&ev)html=settingsSheet(ev);
   else if(sh.type==='confirm')html=confirmSheet(sh);
   else if(sh.type==='share'&&ev)html=shareSheet(ev);
+  else if(sh.type==='backup')html=backupSheet();
+  else if(sh.type==='restore')html=restoreSheet();
+  else if(sh.type==='shareEvent'&&ev)html=shareEventSheet();
+  else if(sh.type==='import')html=importSheet();
+  else if(sh.type==='hub'&&ev)html=hubSheet();
+  else if(sh.type==='image'&&ev)html=imageSheet();
+  else if(sh.type==='reminders'&&ev)html=remindersSheet();
+  else if(sh.type==='repeat'&&ev)html=repeatSheet();
+  else if(sh.type==='privacy')html=privacySheet();
   root.innerHTML=html;
 }
 function lock(on){document.documentElement.style.overflow=on?'hidden':'';}
@@ -717,7 +1057,7 @@ function openSheet(sh,focusSel){
   ui.sheet=sh;renderSheet();lock(true);
   if(focusSel)setTimeout(()=>{const el=$(focusSel);if(el){el.focus();try{if(el.tagName==='INPUT'&&el.value)el.select();}catch(e){}}},40);
 }
-function closeSheet(){ui.sheet=null;ui.confirmFn=null;$('#sheetRoot').innerHTML='';lock(false);}
+function closeSheet(){if(ui.imgUrl){URL.revokeObjectURL(ui.imgUrl);ui.imgUrl=null;}ui.imgBlob=null;ui.sheet=null;ui.confirmFn=null;ui.pendingRestore=null;$('#sheetRoot').innerHTML='';lock(false);}
 
 let toastT=null;
 function toast(msg,action){
@@ -732,12 +1072,14 @@ const app=$('#app');
 function render(){const ev=curEv();app.innerHTML=ev?eventView(ev):homeView();}
 
 /* ---------- expense sheet helpers ---------- */
-function syncExpense(){
+function syncExpense(rebuild){
   const ev=curEv(),d=ui.sheet&&ui.sheet.draft;
   if(!ev||!d)return;
   document.querySelectorAll('[data-act="pickPayer"]').forEach(b=>{const on=b.dataset.id===d.payer;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));});
   document.querySelectorAll('[data-act="toggleFor"]').forEach(b=>{const on=d.forIds.indexOf(b.dataset.id)>=0;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));});
+  document.querySelectorAll('[data-act="splitMode"]').forEach(b=>{const on=b.dataset.mode===d.mode;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));});
   const c=$('#forCount');if(c)c.textContent='('+d.forIds.length+' of '+ev.members.length+')';
+  if(rebuild){const r=$('#splitRows');if(r)r.innerHTML=splitRowsHtml(ev,d);}else updateSplitRows();
   const p=$('#expPreview');if(p)p.innerHTML=previewHtml(ev,d);
   setErr('#expErr','');
 }
@@ -831,26 +1173,38 @@ const ACT={
     const ev=curEv(),e=ev&&ev.expenses.find(x=>x.id===t.dataset.id);if(!e)return;
     openSheet({type:'expense',draft:expenseDraft(ev,e)});
   },
-  pickPayer(t){ui.sheet.draft.payer=t.dataset.id;syncExpense();},
+  pickPayer(t){ui.sheet.draft.payer=t.dataset.id;syncExpense(false);},
   toggleFor(t){
     const d=ui.sheet.draft,id=t.dataset.id,i=d.forIds.indexOf(id);
     if(i>=0)d.forIds.splice(i,1);else d.forIds.push(id);
-    syncExpense();
+    syncExpense(true);
   },
-  forAll(){const ev=curEv();ui.sheet.draft.forIds=ev.members.map(m=>m.id);syncExpense();},
-  forNone(){ui.sheet.draft.forIds=[];syncExpense();},
+  forAll(){const ev=curEv();ui.sheet.draft.forIds=ev.members.map(m=>m.id);syncExpense(true);},
+  forNone(){ui.sheet.draft.forIds=[];syncExpense(true);},
+  splitMode(t){
+    ui.sheet.draft.mode=t.dataset.mode;syncExpense(true);
+    if(ui.sheet.draft.mode!=='equal'){const sg=document.querySelector('.sheet .seg');if(sg&&sg.scrollIntoView)sg.scrollIntoView({block:'start'});}
+  },
   quickTitle(t){const d=ui.sheet.draft;d.title=t.dataset.t;const i=$('#fTitle');if(i)i.value=d.title;},
   saveExpense(){
     const ev=curEv(),d=ui.sheet&&ui.sheet.draft;if(!ev||!d)return;
-    const amt=parseAmount(d.amountStr);
+    const R=resolveDraft(ev,d),amt=R.amt;
     let err='';
     if(!(amt>0))err='Enter the amount.';
     else if(amt>1e11)err='That amount is too large.';
     else if(!d.payer)err='Choose who paid.';
     else if(!d.forIds.length)err='Choose at least one person to split between.';
+    else if(!R.ok)err=R.err||(R.over?'The amounts add up to '+M(ev,R.over)+' more than the total.':M(ev,R.left)+' of the total is still unassigned. Fill it in, or clear an amount so the rest is shared.');
     if(err){setErr('#expErr',err);return;}
-    const ids=ev.members.filter(m=>d.forIds.indexOf(m.id)>=0).map(m=>m.id);
-    const rec={id:d.id||uid(),title:(d.title||'').trim().slice(0,40)||'Expense',amount:amt,payer:d.payer,forIds:ids,at:Date.now()};
+    const rec={id:d.id||uid(),title:(d.title||'').trim().slice(0,40)||'Expense',amount:amt,payer:d.payer,forIds:R.ids,at:Date.now()};
+    if(d.mode==='shares'||d.mode==='amount'){
+      const src=(d.mode==='shares'?d.valsS:d.valsA)||{},vals={};
+      R.ids.forEach(id=>{const v=String(src[id]||'').trim();if(v!=='')vals[id]=v;});
+      if(Object.keys(vals).length){
+        rec.mode=d.mode;rec.vals=vals;rec.sh={};
+        R.ids.forEach(id=>{rec.sh[id]=R.shares[id];});
+      }
+    }
     const wasEdit=!!d.id;
     if(wasEdit){
       const i=ev.expenses.findIndex(x=>x.id===d.id);
@@ -859,8 +1213,8 @@ const ACT={
     save();closeSheet();render();toast(wasEdit?'Changes saved':'Expense added');
   },
   dupExpense(){
-    const ev=curEv(),d=ui.sheet.draft;
-    openSheet({type:'expense',draft:{id:null,title:d.title,amountStr:d.amountStr,payer:d.payer,forIds:d.forIds.slice()}},'#fAmount');
+    const d=ui.sheet.draft;
+    openSheet({type:'expense',draft:{id:null,title:d.title,amountStr:d.amountStr,payer:d.payer,forIds:d.forIds.slice(),mode:d.mode,valsS:Object.assign({},d.valsS),valsA:Object.assign({},d.valsA)}},'#fAmount');
   },
   delExpense(){
     const ev=curEv(),d=ui.sheet.draft;
@@ -892,6 +1246,73 @@ const ACT={
     openSheet({type:'confirm',title:'Delete event?',text:'This deletes '+ev.name+' and all of its expenses. This cannot be undone.',label:'Delete event'});
     ui.confirmFn=fn;
   },
+  hub(){openSheet({type:'hub'});},
+  shareImage(){openSheet({type:'image'});refreshImage();},
+  imgMode(t){ui.imgMode=t.dataset.mode==='bal'?'bal':'pay';renderSheet();refreshImage();},
+  saveImage(){saveImage();},
+  sendImage(){sendImage();},
+  reminders(){ui.remMode='group';openSheet({type:'reminders'});},
+  remindMode(t){ui.remMode=t.dataset.mode==='each'?'each':'group';renderSheet();},
+  remindCopy(){const ta=$('#remText');if(ta)copyPlain(ta.value,ta).then(ok=>toast(ok?'Message copied':'Select the text and copy it by hand'));},
+  remindGroup(){const ta=$('#remText');if(ta)openWhatsApp(ta.value);},
+  remindOne(t){
+    const ev=curEv();if(!ev)return;
+    const P=getPlan(ev,compute(ev)),items=remindItems(ev,unpaidList(ev,P));
+    const p=payersOf(ev,items).find(x=>x.id===t.dataset.id);if(!p)return;
+    openWhatsApp(reminderPerson(ev.name,p.name,p.items,v=>M(ev,v)));
+  },
+  repeatEvent(){const ev=curEv();if(!ev)return;openSheet({type:'repeat',name:nextEventName(ev.name,shortDate()),copyExp:false},'#rpName');},
+  repeatCopy(t){const nmEl=$('#rpName');if(nmEl)ui.sheet.name=nmEl.value;ui.sheet.copyExp=t.dataset.copy==='1';renderSheet();},
+  createRepeat(){
+    const ev=curEv();if(!ev||!ui.sheet)return;
+    const nmEl=$('#rpName'),name=((nmEl&&nmEl.value)||'').trim().slice(0,40)||nextEventName(ev.name,shortDate());
+    const n=cloneEvent(ev,name,!!ui.sheet.copyExp,uid,Date.now());
+    S.events.push(n);S.currentId=n.id;S.tab='expenses';
+    save();closeSheet();render();window.scrollTo(0,0);toast('Event created');
+  },
+  privacy(){openSheet({type:'privacy'});},
+  askWipe(){
+    openSheet({type:'confirm',title:'Delete all data?',text:'This deletes every event on this device. Backups and files you already shared are not affected.',label:'Delete everything'});
+    ui.confirmFn=wipeAll;
+  },
+  async installApp(){
+    if(!deferredInstall)return;
+    const evt=deferredInstall;deferredInstall=null;
+    try{
+      await evt.prompt();
+      const choice=await evt.userChoice;
+      if(!(choice&&choice.outcome==='accepted'))toast('Not installed');
+    }catch(e){toast('Could not open the install prompt');}
+    render();
+  },
+  importEvent(){openSheet({type:'import'});},
+  importAdd(){applyImport('keep');},
+  importUpdate(){applyImport('update');},
+  importKeep(){applyImport('keep');},
+  shareEvent(){openSheet({type:'shareEvent'});},
+  saveEventFile(){saveEventFile();},
+  copyEventText(){copyEventText();},
+  shareEventText(){shareEventText();},
+  pasteClipboard(){pasteClipboard();},
+  backup(){openSheet({type:'backup'});},
+  copyBackup(){copyBackup();},
+  saveBackup(){saveBackupFile();},
+  restoreText(){const ta=$('#rsText');startRestore(ta?ta.value:'');},
+  restoreAdd(){
+    const r=ui.pendingRestore;if(!r)return;
+    const have=new Set(S.events.map(e=>e.id));let n=0;
+    r.events.forEach(e=>{if(!have.has(e.id)){S.events.push(e);n++;}});
+    save();closeSheet();render();
+    toast(n?('Added '+plural(n,'event')):'Nothing new: those events are already here');
+  },
+  restoreReplace(){
+    const r=ui.pendingRestore;if(!r)return;
+    S.events=r.events.slice();S.currentId=null;
+    if(r.lastCoord)S.lastCoord=r.lastCoord;
+    if(r.lastCur!=null)S.lastCur=r.lastCur;
+    save();closeSheet();render();window.scrollTo(0,0);
+    toast('Restored '+plural(r.events.length,'event'));
+  },
   confirmYes(){const fn=ui.confirmFn;closeSheet();if(fn)fn();},
   closeSheet(){closeSheet();},
   toastAction(){const fn=ui.toastAction;$('#toastRoot').innerHTML='';ui.toastAction=null;if(fn)fn();}
@@ -910,6 +1331,414 @@ async function doShare(){
   catch(e){if(!e||e.name!=='AbortError')doCopy();}
 }
 
+/* ---------- backup and restore ---------- */
+let DL=null;
+(function(){
+  try{
+    if(window.claude&&typeof window.claude.use==='function'){
+      window.claude.use('downloads').then(ns=>{DL=ns||null;if(DL&&ui.sheet&&(ui.sheet.type==='backup'||ui.sheet.type==='shareEvent'))renderSheet();}).catch(()=>{DL=null;});
+    }
+  }catch(e){DL=null;}
+})();
+const standalone=(()=>{try{return window.self===window.top;}catch(e){return false;}})();
+const canSaveFile=()=>!!DL||standalone;
+async function saveFile(name,data){
+  if(DL){await DL.save({filename:name,data:data});return;}
+  if(standalone){
+    const blob=data instanceof Blob?data:new Blob([data],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=name;a.style.display='none';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    return;
+  }
+  const err=new Error('unavailable');err.code='unavailable';throw err;
+}
+const dateText=x=>{const d=new Date(x);return isNaN(d.getTime())?'':d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});};
+function dateStamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+
+function backupSheet(){
+  const n=S.events.length;
+  const back=n
+    ?`<p class="bk-p">${n===1?'Saves your event':'Saves all '+n+' events'}: people, expenses and ticked payments.</p>
+      <div class="bk-actions">${canSaveFile()?`<button class="btn block" data-act="saveBackup">${icon('download',18)}Save backup file</button>`:''}<button class="btn ${canSaveFile()?'outline ':''}block" data-act="copyBackup">${icon('copy',18)}Copy backup text</button></div>
+      <textarea id="bkText" class="textarea mono mt12" rows="6" readonly hidden></textarea>
+      <p class="hint">Keep it somewhere safe, like a note or a message to yourself.</p>`
+    :`<p class="bk-p muted">You have no events to back up yet.</p>`;
+  const body=`<h3 class="sub mt8">Back up</h3>${back}
+    <h3 class="sub mt26">Restore</h3>
+    <p class="bk-p">Bring events back from a backup, on this device or a new one.</p>
+    ${restoreControls('Choose backup file','Or paste the backup text','Restore from text')}`;
+  return shell('Backup and restore',body,'');
+}
+function restoreSheet(){
+  const r=ui.pendingRestore;if(!r)return '';
+  const when=r.savedAt?dateText(r.savedAt):'';
+  const info=e=>plural(e.members.length,'person').replace('persons','people')+', '+plural(e.expenses.length,'expense')+', '+fmt(compute(e).total,e.currency)+' spent';
+  if(r.mode==='add'){
+    const st=r.events.map(e=>{const l=S.events.find(x=>x.id===e.id)||null;return {e:e,l:l,same:!!l&&contentKey(l)===contentKey(e)};});
+    const nConf=st.filter(x=>x.l).length,n=r.events.length;
+    const items=st.map(x=>`<li class="rs-item"><b>${esc(x.e.name)}</b><span class="muted">${esc(info(x.e))}</span>${x.l?`<span class="rs-warn">${x.same?'You already have this event with the same people and expenses.':'You already have a copy: '+esc(info(x.l))+'.'}</span>`:''}</li>`).join('');
+    const title=nConf?(n===1?'You already have this event':'Some of these are already here'):(n===1?'Add this event?':'Add these '+n+' events?');
+    const body=`<p class="bk-p">${when?'Made on '+esc(when)+'. ':''}${n===1?'The file has one event:':'The file has '+n+' events:'}</p><ul class="rs-list">${items}</ul>`;
+    const foot=nConf
+      ?`<button class="btn block" data-act="importUpdate">${nConf===1?'Update my copy':'Update my copies'}</button><p class="hint mt0">Replaces your copy with the file's version. Payments you have ticked stay ticked.</p><button class="btn outline block" data-act="importKeep">Keep both</button><p class="hint mt0">Adds the file's version as a new event next to yours.</p>`
+      :`<button class="btn block" data-act="importAdd">${n===1?'Add event':'Add '+n+' events'}</button>`;
+    return shell(title,body,foot);
+  }
+  const have=S.events.length;
+  const items=r.events.map(e=>`<li class="rs-item"><b>${esc(e.name)}</b><span class="muted">${esc(info(e))}</span></li>`).join('');
+  const body=`<p class="bk-p">${when?'Saved on '+esc(when)+'. ':''}It has ${plural(r.events.length,'event')}:</p><ul class="rs-list">${items}</ul>`;
+  const foot=have
+    ?`<button class="btn block" data-act="restoreAdd">Add to current events</button><p class="hint mt0">Only adds events that are not already on this device.</p><button class="btn danger block" data-act="restoreReplace">Replace everything on this device</button><p class="hint mt0">This removes the ${plural(have,'event')} that ${have===1?'is':'are'} here now.</p>`
+    :`<button class="btn block" data-act="restoreReplace">Restore ${plural(r.events.length,'event')}</button>`;
+  return shell('Restore this backup?',body,foot);
+}
+function markBackup(){S.lastBackup=Date.now();save();if(!curEv())render();}
+async function copyBackup(){
+  const text=makeBackup(S),ta=$('#bkText');
+  let ok=false;
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(text);ok=true;}}catch(e){}
+  if(!ok&&ta){
+    ta.hidden=false;ta.value=text;
+    try{ta.focus();ta.select();ta.setSelectionRange(0,text.length);ok=document.execCommand('copy');}catch(e){}
+  }
+  if(ok){markBackup();toast('Backup copied. Paste it somewhere safe.');}
+  else{if(ta){ta.hidden=false;ta.value=text;ta.focus();ta.select();}toast('Copy the text below by hand');}
+}
+async function saveBackupFile(){
+  if(!canSaveFile())return;
+  try{
+    await saveFile('evenly-backup-'+dateStamp()+'.json',makeBackup(S,'backup'));
+    markBackup();toast(DL?'Backup saved':'Backup downloaded');
+  }catch(e){
+    const c=e&&e.code;
+    if(c==='declined')toast('Backup not saved');
+    else if(c==='rate_limited')toast('One moment, then try again');
+    else toast('Could not save the file. Try Copy backup text.');
+  }
+}
+function startRestore(text){
+  const r=parseBackup(text);
+  if(r.err){setErr('#rsErr',r.err);return;}
+  r.mode=(ui.sheet&&ui.sheet.type==='import')?'add':'restore';
+  ui.pendingRestore=r;
+  openSheet({type:'restore'});
+}
+function readBackupFile(f){
+  if(f.size>5*1024*1024){setErr('#rsErr','That file is too big to be an Evenly backup.');return;}
+  const fr=new FileReader();
+  fr.onload=()=>startRestore(String(fr.result||''));
+  fr.onerror=()=>setErr('#rsErr','Could not read that file.');
+  fr.readAsText(f);
+}
+
+/* ---------- share one event, add an event from a file ---------- */
+const slug=t=>String(t).toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-+|-+$/g,'').slice(0,30).replace(/-+$/,'')||'event';
+const eventFileName=ev=>'evenly-'+slug(ev.name)+'-'+dateStamp()+'.json';
+const eventText=ev=>makeBackup({events:[ev]},'event');
+
+function shareEventSheet(){
+  const ev=curEv();if(!ev)return '';
+  const btns=[];
+  if(canSaveFile())btns.push(['saveEventFile','download','Save event file']);
+  if(typeof navigator!=='undefined'&&navigator.share)btns.push(['shareEventText','share','Share event text']);
+  btns.push(['copyEventText','copy','Copy event text']);
+  const html=btns.map((b,i)=>`<button class="btn ${i?'outline ':''}block" data-act="${b[0]}">${icon(b[1],18)}${b[2]}</button>`).join('');
+  const body=`<p class="bk-p">Send this to your group. They open Evenly, tap <b>Add event from file</b> and choose the file, or paste the text. Each person gets their own copy, with all the people and expenses.</p>
+    <div class="bk-actions">${html}</div>
+    <textarea id="evText" class="textarea mono mt12" rows="6" readonly hidden></textarea>
+    <p class="hint">Files and text both work. If someone cannot open files on their phone, the text is the easy way.</p>`;
+  return shell('Share this event',body,'');
+}
+function importSheet(){
+  const body=`<p class="bk-p">Got an event file from someone in your group? Add it here to get your own copy.</p>
+    ${restoreControls('Choose event file','Or paste the event text','Add from text')}`;
+  return shell('Add event from file',body,'');
+}
+async function saveEventFile(){
+  const ev=curEv();if(!ev||!canSaveFile())return;
+  try{
+    await saveFile(eventFileName(ev),eventText(ev));
+    toast(DL?'Event file saved':'Event file downloaded');
+  }catch(e){
+    const c=e&&e.code;
+    if(c==='declined')toast('Event file not saved');
+    else if(c==='rate_limited')toast('One moment, then try again');
+    else toast('Could not save the file. Try Copy event text.');
+  }
+}
+async function copyEventText(){
+  const ev=curEv();if(!ev)return;
+  const text=eventText(ev),ta=$('#evText');
+  let ok=false;
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(text);ok=true;}}catch(e){}
+  if(!ok&&ta){
+    ta.hidden=false;ta.value=text;
+    try{ta.focus();ta.select();ta.setSelectionRange(0,text.length);ok=document.execCommand('copy');}catch(e){}
+  }
+  if(ok)toast('Event text copied. Paste it into your group chat.');
+  else{if(ta){ta.hidden=false;ta.value=text;ta.focus();ta.select();}toast('Copy the text below by hand');}
+}
+function applyImport(how){
+  const r=ui.pendingRestore;if(!r)return;
+  const res=mergeImport(S.events,r.events,how,uid,Date.now());
+  S.events=res.events;
+  const bits=[];
+  if(res.added)bits.push(plural(res.added,'event')+' added');
+  if(res.updated)bits.push(plural(res.updated,'event')+' updated');
+  if(res.copied)bits.push(plural(res.copied,'event')+' added as '+(res.copied===1?'a copy':'copies'));
+  if(r.events.length===1&&res.last){S.currentId=res.last.id;S.tab='settle';}
+  save();closeSheet();render();window.scrollTo(0,0);
+  toast(bits.join(', '));
+}
+
+function restoreControls(fileLabel,textLabel,submitLabel){
+  return `<div class="btn outline block file-btn">${icon('upload',18)}${fileLabel}<input id="rsFile" class="file-over" type="file" aria-label="${fileLabel}"></div>
+    <p class="hint">Nothing opens when you tap it? Some phones cannot pick files from inside this app. Paste the text instead.</p>
+    <div class="lbl-row"><label class="lbl" for="rsText">${textLabel}</label><button type="button" class="link" data-act="pasteClipboard">Paste from clipboard</button></div>
+    <textarea id="rsText" class="textarea mono" rows="4" placeholder="Paste the text here"></textarea>
+    <p class="err" id="rsErr" role="alert"></p>
+    <button class="btn block gap" data-act="restoreText">${submitLabel}</button>`;
+}
+async function pasteClipboard(){
+  const ta=$('#rsText');if(!ta)return;
+  let t=null;
+  try{t=await navigator.clipboard.readText();}catch(e){t=null;}
+  if(t&&t.trim()){ta.value=t;startRestore(t);return;}
+  ta.focus();
+  toast(t===null?'Press and hold in the box, then choose Paste':'Nothing to paste yet. Copy the text first.');
+}
+async function shareEventText(){
+  const ev=curEv();if(!ev)return;
+  try{await navigator.share({title:ev.name,text:eventText(ev)});}
+  catch(e){if(!e||e.name!=='AbortError')copyEventText();}
+}
+
+/* ---------- share and remind ---------- */
+function hubSheet(){
+  const ev=curEv();if(!ev)return '';
+  const P=getPlan(ev,compute(ev)),unpaid=unpaidList(ev,P);
+  const row=(act,ic,title,sub,off)=>`<li><button class="led-row" data-act="${act}" ${off?'disabled':''}><span class="ev-ic">${icon(ic,20)}</span><span class="led-main"><span class="led-title">${title}</span><span class="led-sub">${sub}</span></span>${icon('chev',18)}</button></li>`;
+  const rows=[
+    row('share','share','Share summary','Text you can paste into a chat'),
+    row('shareImage','image','Share as image','A picture of who pays whom'),
+    row('reminders','bell','Send reminders',unpaid.length?plural(unpaid.length,'payment')+' not ticked off yet':'Everyone has paid',!unpaid.length),
+    row('shareEvent','download','Share event file','Give your group their own copy of this event')
+  ];
+  return shell('Share and remind',`<ul class="ledger mt8">${rows.join('')}</ul>`,'');
+}
+
+function wrapText(ctx,text,maxW,maxLines){
+  const words=String(text).split(/\s+/).filter(Boolean),lines=[];
+  let cur='';
+  for(const w of words){
+    const t=cur?cur+' '+w:w;
+    if(ctx.measureText(t).width<=maxW){cur=t;continue;}
+    if(cur)lines.push(cur);
+    cur=w;
+    while(cur.length>1&&ctx.measureText(cur).width>maxW){
+      let i=cur.length;
+      while(i>1&&ctx.measureText(cur.slice(0,i)).width>maxW)i--;
+      lines.push(cur.slice(0,i));cur=cur.slice(i);
+    }
+  }
+  if(cur)lines.push(cur);
+  if(lines.length>maxLines){
+    lines.length=maxLines;
+    let l=lines[maxLines-1];
+    while(l.length>1&&ctx.measureText(l+'\u2026').width>maxW)l=l.slice(0,-1);
+    lines[maxLines-1]=l+'\u2026';
+  }
+  return lines.length?lines:[''];
+}
+function fitText(ctx,text,maxW){
+  if(ctx.measureText(text).width<=maxW)return text;
+  let t=String(text);
+  while(t.length>1&&ctx.measureText(t+'\u2026').width>maxW)t=t.slice(0,-1);
+  return t+'\u2026';
+}
+function roundRect(g,x,y,w,h,r){
+  g.beginPath();g.moveTo(x+r,y);g.lineTo(x+w-r,y);g.arcTo(x+w,y,x+w,y+r,r);g.lineTo(x+w,y+h-r);g.arcTo(x+w,y+h,x+w-r,y+h,r);
+  g.lineTo(x+r,y+h);g.arcTo(x,y+h,x,y+h-r,r);g.lineTo(x,y+r);g.arcTo(x,y,x+r,y,r);g.closePath();
+}
+/* Draws the result card on a canvas: 1080 px wide, as tall as it needs to be. */
+function drawResult(m){
+  const W=1080,PAD=64,ROW=100,MAXROWS=40;
+  const cs=getComputedStyle(document.documentElement);
+  const FD=(cs.getPropertyValue('--f-display')||'').trim()||'sans-serif',FB=(cs.getPropertyValue('--f-body')||'').trim()||'sans-serif';
+  const C={paper:'#EEF3EF',panel:'#FFFFFF',ink:'#0E241C',muted:'#4F6B5F',line:'#D5E0D9',ring:'#A9BBB1',court:'#0D6A54',cork:'#F2A93B',pos:'#0D6A54',neg:'#B3302A'};
+  const probe=document.createElement('canvas').getContext('2d');
+  probe.font='700 78px '+FD;
+  const titleLines=wrapText(probe,m.title,W-2*PAD,2);
+  const headH=PAD+titleLines.length*86+150;
+  let used=0;
+  const secs=m.sections.map(s=>{const rows=s.rows.slice(0,Math.max(1,MAXROWS-used));used+=rows.length;return {title:s.title,rows,cut:s.rows.length-rows.length};});
+  const blockH=(n,cut)=>96+n*ROW+(cut?64:0)+36;
+  let bodyH=24;
+  secs.forEach(s=>{bodyH+=blockH(s.rows.length,s.cut);});
+  const bal=m.balances?m.balances.slice(0,60):null;
+  if(bal)bodyH+=blockH(bal.length,m.balances.length-bal.length);
+  const H=headH+bodyH+120;
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const g=cv.getContext('2d');
+  g.fillStyle=C.paper;g.fillRect(0,0,W,H);
+  g.fillStyle=C.court;g.fillRect(0,0,W,headH);
+  g.textBaseline='alphabetic';g.textAlign='left';
+  g.fillStyle='#FFFFFF';g.font='700 78px '+FD;
+  titleLines.forEach((l,i)=>g.fillText(l,PAD,PAD+70+i*86));
+  const infoY=PAD+titleLines.length*86+96;
+  g.fillStyle='rgba(255,255,255,.85)';g.font='500 32px '+FB;g.fillText('Total spent',PAD,infoY-40);
+  g.fillStyle=C.cork;g.font='700 64px '+FD;g.fillText(m.total,PAD,infoY+22);
+  g.fillStyle='rgba(255,255,255,.85)';g.font='500 32px '+FB;g.textAlign='right';g.fillText(m.date,W-PAD,infoY+18);g.textAlign='left';
+  let y=headH+24;
+  const panel=(top,n)=>{roundRect(g,PAD,top,W-2*PAD,n*ROW,28);g.fillStyle=C.panel;g.fill();g.lineWidth=3;g.strokeStyle=C.line;g.stroke();};
+  const sep=(yy)=>{g.beginPath();g.moveTo(PAD+28,yy);g.lineTo(W-PAD-28,yy);g.lineWidth=2;g.strokeStyle=C.line;g.stroke();};
+  const heading=(t)=>{g.fillStyle=C.ink;g.font='700 54px '+FD;g.fillText(t,PAD,y+64);};
+  secs.forEach(s=>{
+    heading(s.title);
+    const top=y+96;
+    panel(top,s.rows.length);
+    s.rows.forEach((r,i)=>{
+      const yc=top+i*ROW+ROW/2,x0=PAD+(r.plain?36:104);
+      if(i)sep(top+i*ROW);
+      if(!r.plain){
+        g.beginPath();g.arc(PAD+58,yc,24,0,Math.PI*2);
+        if(r.done){g.fillStyle=C.pos;g.fill();g.strokeStyle='#FFFFFF';g.lineWidth=6;g.lineCap='round';g.lineJoin='round';g.beginPath();g.moveTo(PAD+46,yc+1);g.lineTo(PAD+55,yc+10);g.lineTo(PAD+72,yc-9);g.stroke();}
+        else{g.lineWidth=5;g.strokeStyle=C.ring;g.stroke();}
+      }
+      const amtW=(()=>{g.font='700 56px '+FD;return r.amount?g.measureText(r.amount).width:0;})();
+      g.font='600 42px '+FB;
+      const name=fitText(g,r.name,W-2*PAD-(r.plain?36:104)-amtW-70);
+      g.fillStyle=r.done?C.muted:C.ink;g.fillText(name,x0,yc+15);
+      if(r.done){const w=g.measureText(name).width;g.beginPath();g.moveTo(x0,yc+2);g.lineTo(x0+w,yc+2);g.lineWidth=3;g.strokeStyle=C.muted;g.stroke();}
+      if(r.amount){g.font='700 56px '+FD;g.textAlign='right';g.fillStyle=r.done?C.muted:C.ink;g.fillText(r.amount,W-PAD-34,yc+20);g.textAlign='left';}
+    });
+    if(s.cut){g.fillStyle=C.muted;g.font='500 34px '+FB;g.fillText('+ '+s.cut+' more',PAD+8,top+s.rows.length*ROW+46);}
+    y+=blockH(s.rows.length,s.cut);
+  });
+  if(bal){
+    heading('Balances');
+    const top=y+96;
+    panel(top,bal.length);
+    bal.forEach((r,i)=>{
+      const yc=top+i*ROW+ROW/2;
+      if(i)sep(top+i*ROW);
+      g.font='600 42px '+FB;g.fillStyle=C.ink;g.fillText(fitText(g,r.name,W-2*PAD-420),PAD+36,yc+15);
+      g.font='700 52px '+FD;g.textAlign='right';g.fillStyle=r.sign>0?C.pos:r.sign<0?C.neg:C.muted;g.fillText(r.text,W-PAD-34,yc+19);g.textAlign='left';
+    });
+    if(m.balances.length>bal.length){g.fillStyle=C.muted;g.font='500 34px '+FB;g.fillText('+ '+(m.balances.length-bal.length)+' more',PAD+8,top+bal.length*ROW+46);}
+    y+=blockH(bal.length,m.balances.length-bal.length);
+  }
+  g.fillStyle=C.muted;g.font='500 30px '+FB;g.textAlign='center';g.fillText('Made with Evenly',W/2,H-52);g.textAlign='left';
+  return cv;
+}
+function canShareFiles(){
+  try{
+    if(!navigator.share||!navigator.canShare)return false;
+    return !!navigator.canShare({files:[new File([new Blob(['x'])],'a.png',{type:'image/png'})]});
+  }catch(e){return false;}
+}
+const imageFileName=ev=>'evenly-'+slug(ev.name)+'-'+dateStamp()+'.png';
+function imageSheet(){
+  const on=ui.imgMode==='bal';
+  const seg=`<div class="seg" role="group" aria-label="What the image shows"><button type="button" class="${on?'':'on'}" data-act="imgMode" data-mode="pay" aria-pressed="${!on}">Payments</button><button type="button" class="${on?'on':''}" data-act="imgMode" data-mode="bal" aria-pressed="${on}">With balances</button></div>`;
+  const body=`${seg}<div class="img-wrap"><img id="imgPrev" class="img-prev" alt="Preview of the picture you are about to share"></div><p class="hint">Made on your phone. Nothing is uploaded.</p>`;
+  const share=canShareFiles();
+  const foot=`${share?`<button class="btn block" data-act="sendImage">${icon('share',18)}Share image</button>`:''}<button class="btn ${share?'outline ':''}block" data-act="saveImage">${icon('download',18)}Save image</button>`;
+  return shell('Share as image',body,foot);
+}
+function refreshImage(){
+  const ev=curEv();if(!ev||!ui.sheet||ui.sheet.type!=='image')return;
+  const calc=compute(ev),P=getPlan(ev,calc);
+  const model=resultModel(ev,calc,P,ui.imgMode==='bal',v=>M(ev,v),dateText(Date.now()));
+  drawResult(model).toBlob(b=>{
+    if(!b||!ui.sheet||ui.sheet.type!=='image')return;
+    if(ui.imgUrl)URL.revokeObjectURL(ui.imgUrl);
+    ui.imgBlob=b;ui.imgUrl=URL.createObjectURL(b);
+    const img=$('#imgPrev');if(img)img.src=ui.imgUrl;
+  },'image/png');
+}
+async function saveImage(){
+  const ev=curEv(),blob=ui.imgBlob;if(!ev||!blob)return;
+  try{await saveFile(imageFileName(ev),blob);toast(DL?'Image saved':'Image downloaded');}
+  catch(e){
+    const c=e&&e.code;
+    if(c==='declined')toast('Image not saved');
+    else if(c==='rate_limited')toast('One moment, then try again');
+    else toast('Press and hold the picture to save it');
+  }
+}
+async function sendImage(){
+  const ev=curEv(),blob=ui.imgBlob;if(!ev||!blob)return;
+  try{
+    const file=new File([blob],imageFileName(ev),{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:ev.name});return;}
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  saveImage();
+}
+
+function remindItems(ev,list){return list.map(t=>({from:t.from,to:t.to,fromName:nm(ev,t.from),toName:nm(ev,t.to),amt:t.amt}));}
+function openWhatsApp(text){
+  const url='https://wa.me/?text='+encodeURIComponent(text);
+  let w=null;
+  try{w=window.open(url,'_blank');}catch(e){w=null;}
+  if(w){try{w.opener=null;}catch(e){}return;}
+  copyPlain(text,$('#remText')).then(ok=>toast(ok?'Message copied. Paste it in WhatsApp.':'Could not open WhatsApp. Copy the message by hand.'));
+}
+async function copyPlain(text,ta){
+  let ok=false;
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(text);ok=true;}}catch(e){}
+  if(!ok&&ta){try{ta.focus();ta.select();ta.setSelectionRange(0,text.length);ok=document.execCommand('copy');}catch(e){}}
+  return ok;
+}
+function remindersSheet(){
+  const ev=curEv();if(!ev)return '';
+  const P=getPlan(ev,compute(ev)),items=remindItems(ev,unpaidList(ev,P));
+  if(!items.length)return shell('Send reminders',`<div class="note">${icon('check',18)}<span>Everyone has paid. There is nothing to remind.</span></div>`,'');
+  const mode=ui.remMode==='each'?'each':'group',money=v=>M(ev,v);
+  const seg=`<div class="seg" role="group" aria-label="Who to message"><button type="button" class="${mode==='group'?'on':''}" data-act="remindMode" data-mode="group" aria-pressed="${mode==='group'}">Group message</button><button type="button" class="${mode==='each'?'on':''}" data-act="remindMode" data-mode="each" aria-pressed="${mode==='each'}">Each person</button></div>`;
+  let body,foot='';
+  if(mode==='group'){
+    const text=reminderGroup(ev.name,nm(ev,ev.coordId),P.hubOn,items,money);
+    body=`${seg}<label class="lbl" for="remText">Message</label><textarea id="remText" class="textarea" rows="8">${esc(text)}</textarea><p class="hint">You can edit it first. WhatsApp opens with the message ready, and you choose the chat.</p>`;
+    foot=`<div class="foot-row"><button class="btn outline" data-act="remindCopy">${icon('copy',18)}Copy</button><button class="btn" data-act="remindGroup">${icon('share',18)}Open WhatsApp</button></div>`;
+  }else{
+    const rows=payersOf(ev,items).map(p=>`<li><div class="rem-row">${avatar(mem(ev,p.id),'sm')}<span class="led-main"><span class="led-title">${esc(p.name)}</span><span class="led-sub">owes ${money(p.total)}</span></span><button class="btn sm" data-act="remindOne" data-id="${p.id}">WhatsApp</button></div></li>`);
+    body=`${seg}<ul class="ledger">${rows.join('')}</ul><p class="hint">Each button opens WhatsApp with that person's message ready. You choose the chat. No phone numbers are stored.</p>`;
+  }
+  return shell('Send reminders',body,foot);
+}
+
+const shortDate=()=>new Date().toLocaleDateString(undefined,{day:'numeric',month:'short'});
+function repeatSheet(){
+  const ev=curEv();if(!ev)return '';
+  const sh=ui.sheet,copy=!!sh.copyExp;
+  const hint=copy
+    ?`Also copies the ${plural(ev.expenses.length,'expense')}, so you only change what is different this time.`
+    :'A clean event with the same people and the same coordinator.';
+  const body=`<label class="lbl" for="rpName">Name for the new event</label>
+    <input id="rpName" class="input" maxlength="40" autocomplete="off" value="${esc(sh.name)}" data-enter="#createRepeat">
+    <div class="lbl">What to copy</div>
+    <div class="seg" role="group" aria-label="What to copy"><button type="button" class="${copy?'':'on'}" data-act="repeatCopy" data-copy="0" aria-pressed="${!copy}">People only</button><button type="button" class="${copy?'on':''}" data-act="repeatCopy" data-copy="1" aria-pressed="${copy}">With expenses</button></div>
+    <p class="hint">${hint} Ticked payments are never copied.</p>`;
+  return shell('Repeat this event',body,`<button class="btn block" id="createRepeat" data-act="createRepeat">Create event</button>`);
+}
+function privacySheet(){
+  const body=`<p class="bk-p">Evenly keeps your events only in this browser. Nothing is sent to a server, and there are no accounts, cookies or trackers.</p>
+    <p class="bk-p">Backup files and shared events contain names and amounts, so share them only with people you trust.</p>
+    <p class="bk-p">On a shared phone or browser, delete your data when you are done.</p>
+    <button class="btn danger block gap mt12" data-act="askWipe">${icon('trash',18)}Delete all my data</button>`;
+  return shell('Privacy',body,'');
+}
+function wipeAll(){
+  try{localStorage.removeItem(KEY);}catch(e){}
+  S={v:1,events:[],currentId:null,tab:'expenses',lastCoord:'Jinan',lastCur:'\u20B9',lastBackup:0};
+  closeSheet();render();window.scrollTo(0,0);
+  toast('Everything on this device was deleted');
+}
+
 /* ---------- events ---------- */
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-act]');if(!t)return;
@@ -926,10 +1755,21 @@ document.addEventListener('input',e=>{
     if(v!==e.target.value)e.target.value=v;
     d.amountStr=v;
   }else if(f==='title'){d.title=e.target.value;}
+  else if(f==='sv'){
+    const v=e.target.value.replace(/[^\d.,\s]/g,'');
+    if(v!==e.target.value)e.target.value=v;
+    (d.mode==='shares'?d.valsS:d.valsA)[e.target.dataset.id]=v;
+  }
+  updateSplitRows();
   const p=$('#expPreview');if(p)p.innerHTML=previewHtml(ev,d);
   setErr('#expErr','');
 });
 document.addEventListener('change',e=>{
+  if(e.target.id==='rsFile'){
+    const f=e.target.files&&e.target.files[0];
+    if(f)readBackupFile(f);
+    return;
+  }
   if(e.target.dataset&&e.target.dataset.field==='reuse'){
     const src=S.events.find(x=>x.id===e.target.value),ta=$('#neOthers'),co=($('#neCoord').value||'').trim().toLowerCase();
     if(src&&ta)ta.value=src.members.map(m=>m.name).filter(n=>n.toLowerCase()!==co).join(', ');
@@ -945,6 +1785,9 @@ document.addEventListener('keydown',e=>{
 
 load();
 render();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').catch(()=>{});});
+}
 })();
 </script>
 </body>
